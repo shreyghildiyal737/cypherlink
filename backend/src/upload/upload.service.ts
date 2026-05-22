@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -51,6 +51,39 @@ export class UploadService {
       publicUrl: `${publicBase}/${fileKey}`,
       maxSize,
     };
+  }
+
+  async deleteObjects(fileKeys: string[]): Promise<void> {
+    if (!fileKeys.length) return;
+
+    const bucket = process.env.S3_BUCKET;
+    if (!bucket) {
+      this.logger.warn('S3_BUCKET not configured — skipping storage deletion');
+      return;
+    }
+
+    const endpoint = process.env.S3_REGION;
+    const region = process.env.S3_REGION || 'us-east-1';
+    const s3endpoint = process.env.S3_ENDPOINT;
+
+    const client = new S3Client({
+      region,
+      ...(s3endpoint ? { endpoint: s3endpoint, forcePathStyle: true } : {}),
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+      },
+    });
+
+    // DeleteObjects accepts up to 1000 keys per request
+    for (let i = 0; i < fileKeys.length; i += 1000) {
+      const batch = fileKeys.slice(i, i + 1000);
+      const command = new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+      });
+      await client.send(command);
+    }
   }
 
   private extFromMime(mime: string): string {
