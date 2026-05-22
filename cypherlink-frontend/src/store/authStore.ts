@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { api, setAccessToken, getAccessToken } from "../services/api";
 import { getSocket } from "../services/socket";
 import type { Artist } from "../types";
-import { artists } from "../data/mock";
 
 interface RegisterData {
   email: string;
@@ -13,6 +12,7 @@ interface RegisterData {
 interface AuthState {
   user: Artist | null;
   isLoggedIn: boolean;
+  initialized: boolean;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -39,6 +39,7 @@ function mapProfileToArtist(p: any): Artist {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoggedIn: false,
+  initialized: false,
   loading: false,
   error: null,
 
@@ -50,7 +51,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!t) throw new Error("No token returned");
       setAccessToken(t);
       const user = mapProfileToArtist(r.data.user ?? r.data);
-      set({ user, isLoggedIn: true, loading: false });
+      set({ user, isLoggedIn: true, initialized: true, loading: false });
       const s = getSocket();
       if (s && t) {
         s.auth = { token: t };
@@ -75,7 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!t) throw new Error("No token returned");
       setAccessToken(t);
       const user = mapProfileToArtist(r.data.user ?? r.data);
-      set({ user, isLoggedIn: true, loading: false });
+      set({ user, isLoggedIn: true, initialized: true, loading: false });
       const s = getSocket();
       if (s && t) {
         s.auth = { token: t };
@@ -114,7 +115,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
           const me = await api.get("/auth/me");
           const user = mapProfileToArtist(me.data);
-          set({ user, isLoggedIn: true, loading: false });
+          set({ user, isLoggedIn: true, initialized: true, loading: false });
           const s = getSocket();
           if (s && t) {
             s.auth = { token: t };
@@ -122,13 +123,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
         } catch {
           setAccessToken(null);
-          set({ user: null, isLoggedIn: false, loading: false });
+          set({ user: null, isLoggedIn: false, initialized: true, loading: false });
         }
       } else {
-        set({ user: null, isLoggedIn: false });
+        set({ user: null, isLoggedIn: false, initialized: true });
       }
     } catch {
-      set({ user: null, isLoggedIn: false });
+      set({ user: null, isLoggedIn: false, initialized: true });
     }
   },
 
