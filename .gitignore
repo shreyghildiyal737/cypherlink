@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+coverage/
+.prisma/
+*.log
+.DS_Store
+.vscode/
+.idea/
+uploads/
+tmp/
+frontend-temp/
+*.zip
+.opencode/
