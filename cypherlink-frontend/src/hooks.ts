@@ -339,6 +339,36 @@ export function useRSVPSession() {
 }
 
 // ── QR Check-in ──
+
+// Attendee: fetch your own personal QR token for a cypher you RSVPed to
+export function useMyCypherCheckInToken(cypherId: string) {
+  return useQuery({
+    queryKey: ["checkin-token", "cypher", cypherId],
+    queryFn: async () => {
+      const r = await api.get(`/cyphers/${cypherId}/my-checkin-token`);
+      return r.data as { checkInToken: string; expiresAt: string };
+    },
+    enabled: !!cypherId,
+    staleTime: 0, // always refetch — token may have refreshed
+    retry: false,
+  });
+}
+
+// Attendee: fetch your own personal QR token for a session you RSVPed to
+export function useMySessionCheckInToken(sessionId: string) {
+  return useQuery({
+    queryKey: ["checkin-token", "session", sessionId],
+    queryFn: async () => {
+      const r = await api.get(`/sessions/${sessionId}/my-checkin-token`);
+      return r.data as { checkInToken: string; expiresAt: string };
+    },
+    enabled: !!sessionId,
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+// Legacy userId-based check-in (kept for non-QR flows)
 export function useCheckIn() {
   return useMutation({
     mutationFn: async ({

@@ -1,0 +1,666 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ORGANIZER
+  MODERATOR
+  ADMIN
+}
+
+enum CypherType {
+  OPEN
+  VENUE
+}
+
+enum EventState {
+  UPCOMING
+  ACTIVE
+  AFTERGLOW
+  ARCHIVED
+  CANCELLED
+}
+
+enum ProjectVisibility {
+  PRIVATE
+  DISCOVERABLE
+  OPEN
+}
+
+enum ProjectStatus {
+  COOKING
+  LOOKING_FOR_COLLABORATORS
+  RECORDING
+  MIXING
+  FINISHED
+  ARCHIVED
+}
+
+enum MessageIntent {
+  COLLABORATE
+  APPRECIATION
+  IDEA_SHARING
+  CYPHER_FOLLOWUP
+  COMMUNITY_MOVE
+  JUST_TAPPING_IN
+}
+
+enum CommunitySessionType {
+  CLEANUP
+  TEACHING
+  RELIEF
+  ARTIST_SUPPORT
+}
+
+enum NotificationType {
+  COLLAB_INVITE
+  PROJECT_UPDATE
+  CYPHER_REMINDER
+  MENTION
+  FOLLOW
+  VERIFICATION_STATUS
+  MESSAGE_REQUEST
+  CHECKIN_CONFIRMED
+}
+
+enum ReportTargetType {
+  PROFILE
+  PROJECT
+  CYPHER
+  CLIP
+  COMMENT
+  MESSAGE
+  LIVE_CHAT
+}
+
+enum ReportReason {
+  HARASSMENT
+  HATE_SPEECH
+  IMPERSONATION
+  SPAM
+  COPYRIGHT
+  UNSAFE_BEHAVIOR
+  FAKE_EVENT
+  PREDATORY_CONDUCT
+  OTHER
+}
+
+enum LocationVisibility {
+  PUBLIC_CITY_ONLY
+  APPROXIMATE
+  FOLLOWERS_ONLY
+  HIDDEN
+}
+
+enum DmPrivacy {
+  EVERYONE
+  FOLLOWED_ONLY
+  NOBODY
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  displayName   String
+  role          UserRole @default(USER)
+  dmPrivacy     DmPrivacy @default(EVERYONE)
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  sessions     Session[]
+  profile      Profile?
+  sentFollows  Follow[]          @relation("FollowerRelation")
+  receivedFollows Follow[]       @relation("FollowingRelation")
+  ownedProjects  Project[]
+  projectMembers ProjectMember[]
+  projectInvites ProjectInvite[]
+  projectMessages ProjectMessage[]
+  projectFilesUploaded ProjectFile[]
+  rsvps        CypherRSVP[]
+  organizedCyphers Cypher[]
+  cypherAssetsUploaded CypherAsset[]
+  organizedSessions CommunitySession[]
+  checkIns     CypherCheckIn[]
+  sessionRSVPs CommunitySessionRSVP[]
+  clips        Clip[]
+  sentRequests MessageRequest[]  @relation("SenderRelation")
+  receivedRequests MessageRequest[] @relation("ReceiverRelation")
+  conversationsAsA  Conversation[] @relation("ConversationUserA")
+  conversationsAsB  Conversation[] @relation("ConversationUserB")
+  sentMessages  Message[]
+  notifications Notification[]
+  reportsMade  Report[]          @relation("ReporterRelation")
+  reportsReceived Report[]       @relation("ReportedRelation")
+  blocksGiven  Block[]          @relation("BlockerRelation")
+  blocksReceived Block[]         @relation("BlockedRelation")
+  mutedUsers   Mute[]           @relation("MuterRelation")
+  mutedBy      Mute[]           @relation("MutedRelation")
+  auditLogs    AuditLog[]
+  reputationEvents ReputationEvent[]
+  organizerSummary OrganizerSummary?
+  safetyNotes    SafetyNote[]
+  organizerRequest OrganizerRequest?
+  verificationRequest VerificationRequest?
+  reviewedOrganizerRequests OrganizerRequest[] @relation("ReviewerRelation")
+  reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewerRelation")
+  comments     Comment[]
+
+  @@index([email])
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  userId      String
+  refreshToken String
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  handle    String   @unique
+  bio       String?
+  city      String?
+  state     String?
+  country   String?  @default("India")
+  latitude  Float?
+  longitude Float?
+  locationVisibility LocationVisibility @default(PUBLIC_CITY_ONLY)
+  avatarUrl String?
+  coverUrl  String?
+  genres    String[]
+  socialLinks Json?
+  momentum  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credits      ProjectCredit[]
+
+  @@index([handle])
+  @@index([city])
+  @@index([genres])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("FollowerRelation", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowingRelation", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+model Project {
+  id          String          @id @default(uuid())
+  title       String
+  description String?
+  coverUrl    String?
+  status      ProjectStatus   @default(COOKING)
+  visibility  ProjectVisibility @default(DISCOVERABLE)
+  city        String?
+  tags        String[]
+  openRoles   String[]
+  ownerId     String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  owner     User             @relation(fields: [ownerId], references: [id])
+  members   ProjectMember[]
+  invites   ProjectInvite[]
+  messages  ProjectMessage[]
+  files     ProjectFile[]
+  credits   ProjectCredit[]
+  comments  Comment[]
+
+  @@index([visibility])
+  @@index([ownerId])
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model ProjectInvite {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProjectMessage {
+  id        String   @id @default(uuid())
+  projectId String
+  senderId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sender  User    @relation(fields: [senderId], references: [id])
+}
+
+model ProjectFile {
+  id          String   @id @default(uuid())
+  projectId   String
+  uploaderId  String
+  fileName    String
+  fileKey     String
+  fileSize    Int
+  mimeType    String
+  publicUrl   String?
+  createdAt   DateTime @default(now())
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploaderId], references: [id])
+}
+
+model ProjectCredit {
+  id        String   @id @default(uuid())
+  projectId String
+  profileId String
+  role      String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Cypher {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  type        CypherType @default(OPEN)
+  state       EventState @default(UPCOMING)
+  city        String
+  venue       String?
+  venueLat    Float?
+  venueLng    Float?
+  startsAt    DateTime
+  endsAt      DateTime?
+  quota       Int?
+  safetyTags  String[]
+  organizerId String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  organizer   User             @relation(fields: [organizerId], references: [id])
+  rsvps       CypherRSVP[]
+  checkIns    CypherCheckIn[]
+  assets      CypherAsset[]
+  highlights  CypherHighlight[]
+  comments    Comment[]
+
+  @@index([state])
+  @@index([startsAt])
+  @@index([city])
+}
+
+model CypherRSVP {
+  id                    String    @id @default(uuid())
+  cypherId              String
+  userId                String
+  checkInTokenHash      String?
+  checkInTokenExpiresAt DateTime?
+  createdAt             DateTime  @default(now())
+
+  cypher Cypher @relation(fields: [cypherId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cypherId, userId])
+  @@index([cypherId])
+  @@index([checkInTokenHash])
+}
+
+model CypherCheckIn {
+  id          String   @id @default(uuid())
+  cypherId    String
+  userId      String
+  checkedInAt DateTime @default(now())
+  tokenHash   String?
+
+  cypher Cypher @relation(fields: [cypherId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cypherId, userId])
+  @@index([cypherId, userId])
+}
+
+model CypherAsset {
+  id          String   @id @default(uuid())
+  cypherId    String
+  uploaderId  String
+  fileKey     String
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  publicUrl   String?
+  isHighlight Boolean  @default(false)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  cypher   Cypher @relation(fields: [cypherId], references: [id], onDelete: Cascade)
+  uploader User   @relation(fields: [uploaderId], references: [id])
+
+  @@index([cypherId])
+  @@index([expiresAt])
+}
+
+model CypherHighlight {
+  id          String   @id @default(uuid())
+  cypherId    String
+  title       String
+  description String?
+  mediaUrl    String
+  mediaType   String
+  selectedBy  String
+  createdAt   DateTime @default(now())
+
+  cypher Cypher @relation(fields: [cypherId], references: [id], onDelete: Cascade)
+}
+
+model CommunitySession {
+  id          String               @id @default(uuid())
+  title       String
+  description String?
+  type        CommunitySessionType
+  state       EventState           @default(UPCOMING)
+  city        String
+  venue       String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  organizerId String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  organizer User                    @relation(fields: [organizerId], references: [id])
+  rsvps     CommunitySessionRSVP[]
+  comments  Comment[]
+
+  @@index([state])
+  @@index([city])
+}
+
+model CommunitySessionRSVP {
+  id                    String    @id @default(uuid())
+  sessionId             String
+  userId                String
+  checkInTokenHash      String?
+  checkInTokenExpiresAt DateTime?
+  checkedInAt           DateTime?
+  createdAt             DateTime  @default(now())
+
+  session CommunitySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+  @@index([checkInTokenHash])
+}
+
+model Clip {
+  id          String   @id @default(uuid())
+  creatorId   String
+  projectTitle String?
+  city        String
+  reason      String
+  caption     String?
+  mediaUrl    String?
+  likes       Int      @default(0)
+  comments    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator User @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([city])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  body      String
+  authorId  String
+  projectId String?
+  cypherId  String?
+  sessionId String?
+  clipId    String?
+  createdAt DateTime @default(now())
+
+  author  User             @relation(fields: [authorId], references: [id])
+  project Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cypher  Cypher?          @relation(fields: [cypherId], references: [id], onDelete: Cascade)
+  session CommunitySession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model MessageRequest {
+  id          String        @id @default(uuid())
+  senderId    String
+  receiverId  String
+  intent      MessageIntent
+  message     String
+  status      String        @default("pending")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  sender   User @relation("SenderRelation", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceiverRelation", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([receiverId])
+  @@index([senderId])
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userA User @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  type        NotificationType
+  title       String
+  body        String
+  referenceId String?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model Report {
+  id           String           @id @default(uuid())
+  reporterId   String
+  reportedId   String
+  targetType   ReportTargetType
+  targetId     String
+  reason       ReportReason
+  description  String?
+  status       String           @default("open")
+  createdAt    DateTime         @default(now())
+  resolvedAt   DateTime?
+
+  reporter User @relation("ReporterRelation", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("ReportedRelation", fields: [reportedId], references: [id], onDelete: Cascade)
+}
+
+model Block {
+  id         String   @id @default(uuid())
+  blockerId  String
+  blockedId  String
+  createdAt  DateTime @default(now())
+
+  blocker User @relation("BlockerRelation", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockedRelation", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model Mute {
+  id       String   @id @default(uuid())
+  muterId  String
+  mutedId  String
+  createdAt DateTime @default(now())
+
+  muter User @relation("MuterRelation", fields: [muterId], references: [id], onDelete: Cascade)
+  muted User @relation("MutedRelation", fields: [mutedId], references: [id], onDelete: Cascade)
+
+  @@unique([muterId, mutedId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ReputationEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  event     String
+  label     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model OrganizerSummary {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  totalCyphers    Int      @default(0)
+  totalSessions   Int      @default(0)
+  totalAttendance Int      @default(0)
+  totalHighlights Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SafetyNote {
+  id         String   @id @default(uuid())
+  targetType String
+  targetId   String
+  organizerId String
+  note       String
+  severity   String   @default("LOW")
+  createdAt  DateTime @default(now())
+
+  organizer User @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+}
+
+model Incident {
+  id         String   @id @default(uuid())
+  targetType String
+  targetId   String
+  status     String   @default("OPEN")
+  priority   String   @default("MEDIUM")
+  summary    String?
+  resolvedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model OrganizerRequest {
+  id            String    @id @default(uuid())
+  userId        String
+  status        String    @default("PENDING")
+  reason        String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  internalNote  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("ReviewerRelation", fields: [reviewedById], references: [id])
+
+  @@unique([userId])
+}
+
+model VerificationRequest {
+  id            String    @id @default(uuid())
+  userId        String
+  status        String    @default("PENDING")
+  reason        String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  internalNote  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("VerificationReviewerRelation", fields: [reviewedById], references: [id])
+
+  @@unique([userId])
+}
