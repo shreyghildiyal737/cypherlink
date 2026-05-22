@@ -393,12 +393,17 @@ export function useReport() {
 export function useUploadUrl() {
   return useMutation({
     mutationFn: async (d: {
-      fileName: string;
-      fileType: string;
-      purpose: string;
+      folder: string;
+      contentType: string;
+      fileName?: string;
     }) => {
       const r = await api.post("/upload/sign", d);
-      return r.data;
+      return r.data as {
+        uploadUrl: string;
+        fileKey: string;
+        publicUrl: string;
+        maxSize: number;
+      };
     },
   });
 }
