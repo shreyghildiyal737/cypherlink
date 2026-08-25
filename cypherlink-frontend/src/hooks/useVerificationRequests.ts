@@ -2,6 +2,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminOpsApi } from "../services/adminOps.service";
 import { verificationRequests } from "../data/opsMock";
 
+export function useIncidents() {
+  return useQuery({
+    queryKey: ["admin", "incidents"],
+    queryFn: () => adminOpsApi.getIncidents(),
+    staleTime: 10000,
+    retry: 1,
+  });
+}
+
+export function useIncidentsWithFallback() {
+  const q = useIncidents();
+  return { ...q, data: q.data || [] };
+}
+
 export function useVerificationRequests() {
   return useQuery({
     queryKey: ["admin", "verification-requests"],

@@ -14,16 +14,18 @@ export function OpsCard({
   return (
     <section
       className={cn(
-        "rounded-[2rem] border border-white/10 bg-panel p-5",
+        "glass-card rounded-2xl border border-white/[0.06] p-5",
         className,
       )}
     >
       {eyebrow && (
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[.25em] text-cyanGlow">
+        <p className="mb-2 font-label-sm text-[10px] font-semibold uppercase tracking-widest text-primary/70">
           {eyebrow}
         </p>
       )}
-      <h2 className="text-xl font-black tracking-tight">{title}</h2>
+      <h2 className="font-headline-lg-mobile text-xl text-on-surface">
+        {title}
+      </h2>
       <div className="mt-4">{children}</div>
     </section>
   );

@@ -8,6 +8,8 @@ export const organizerOpsApi = {
     api
       .post(`/organizer/cyphers/${cypherId}/checkin-scan`, { qrToken })
       .then((r) => r.data.data),
+  getCypherAssets: (cypherId: string) =>
+    api.get(`/organizer/cyphers/${cypherId}/assets`).then((r) => r.data.data),
   addHighlight: (
     cypherId: string,
     assetId: string,

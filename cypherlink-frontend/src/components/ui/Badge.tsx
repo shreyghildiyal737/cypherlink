@@ -1,23 +1,65 @@
+import { motion } from "framer-motion";
 import { cn } from "../../utils/cn";
+
+type Tone =
+  | "live"
+  | "active"
+  | "upcoming"
+  | "afterglow"
+  | "archived"
+  | "purple"
+  | "cyan"
+  | "orange"
+  | "green"
+  | "muted"
+  | "red"
+  | "gold";
+
 export function Badge({
   children,
-  tone = "purple",
+  tone = "muted",
 }: {
   children: React.ReactNode;
-  tone?: "purple" | "cyan" | "orange" | "green" | "muted";
+  tone?: Tone;
 }) {
+  if (tone === "live" || tone === "active") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary-container/10 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary shadow-primary-glow/20">
+        <motion.span
+          aria-hidden
+          className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)]"
+          animate={{ opacity: [1, 0.3, 1] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        {children}
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest",
+        tone === "upcoming" &&
+          "border-primary-container/20 bg-primary-container/06 text-on-surface/80",
+        tone === "afterglow" &&
+          "border-white/06 bg-white/[0.02] text-on-surface-variant/45",
+        tone === "archived" &&
+          "border-white/[0.04] bg-white/[0.01] text-on-surface-variant/30",
         tone === "purple" &&
-          "bg-purpleGlow/10 text-purple-100 border-purpleGlow/25",
-        tone === "cyan" && "bg-cyanGlow/10 text-cyan-100 border-cyanGlow/25",
+          "border-primary-container/20 bg-primary-container/06 text-on-surface/80",
         tone === "orange" &&
-          "bg-orangeGlow/10 text-orange-100 border-orangeGlow/25",
+          "border-tertiary-container/20 bg-tertiary-container/06 text-tertiary",
+        tone === "red" &&
+          "border-error/25 bg-error/08 text-error",
+        tone === "cyan" &&
+          "border-tertiary-container/30 bg-tertiary-container/10 text-tertiary",
         tone === "green" &&
-          "bg-emerald-400/10 text-emerald-100 border-emerald-300/25",
-        tone === "muted" && "bg-white/5 text-white/70 border-white/10",
+          "border-[#34D399]/20 bg-[rgba(52,211,153,0.06)] text-[#34D399]",
+        tone === "gold" &&
+          "border-secondary/20 bg-secondary-container/08 text-secondary",
+        tone === "muted" &&
+          "border-white/06 bg-white/[0.02] text-on-surface-variant/45",
       )}
     >
       {children}

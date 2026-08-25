@@ -1,7 +1,11 @@
 import { create } from "zustand";
-import { api, setAccessToken, getAccessToken } from "../services/api";
-import { getSocket } from "../services/socket";
+import { api, setAccessToken, registerSilentRefreshHook } from "../services/api";
+import { getSocket, disconnectSocket, updateSocketToken } from "../services/socket";
 import type { Artist } from "../types";
+
+// Wire up the Axios silent-refresh hook once at module load so the socket
+// re-authenticates whenever the interceptor rotates the access token.
+registerSilentRefreshHook((t) => updateSocketToken(t));
 
 interface RegisterData {
   email: string;
@@ -15,11 +19,28 @@ interface AuthState {
   initialized: boolean;
   loading: boolean;
   error: string | null;
+  needsOnboarding: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (d: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   clearError: () => void;
+}
+
+const ONBOARDING_DISMISSED_KEY = "cypherlink:onboarding-dismissed";
+
+function hasDismissedOnboarding(): boolean {
+  try {
+    return localStorage.getItem(ONBOARDING_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function evaluateOnboardingNeeded(user: Artist | null): boolean {
+  if (!user) return false;
+  if (hasDismissedOnboarding()) return false;
+  return !user.city;
 }
 
 function mapProfileToArtist(p: any): Artist {
@@ -36,12 +57,13 @@ function mapProfileToArtist(p: any): Artist {
   };
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoggedIn: false,
   initialized: false,
   loading: false,
   error: null,
+  needsOnboarding: false,
 
   login: async (email, password) => {
     set({ loading: true, error: null });
@@ -51,7 +73,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!t) throw new Error("No token returned");
       setAccessToken(t);
       const user = mapProfileToArtist(r.data.user ?? r.data);
-      set({ user, isLoggedIn: true, initialized: true, loading: false });
+      set({
+        user,
+        isLoggedIn: true,
+        initialized: true,
+        loading: false,
+        needsOnboarding: evaluateOnboardingNeeded(user),
+      });
       const s = getSocket();
       if (s && t) {
         s.auth = { token: t };
@@ -76,7 +104,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!t) throw new Error("No token returned");
       setAccessToken(t);
       const user = mapProfileToArtist(r.data.user ?? r.data);
-      set({ user, isLoggedIn: true, initialized: true, loading: false });
+      // Fresh registration: always show onboarding (any prior dismissal was for a previous account).
+      try {
+        localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
+      } catch {}
+      set({
+        user,
+        isLoggedIn: true,
+        initialized: true,
+        loading: false,
+        needsOnboarding: !user.city,
+      });
       const s = getSocket();
       if (s && t) {
         s.auth = { token: t };
@@ -99,10 +137,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
     } finally {
       setAccessToken(null);
-      set({ user: null, isLoggedIn: false });
+      // Dismissal is per-account; clear so the next login can be evaluated freshly.
       try {
-        getSocket()?.disconnect();
+        localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
       } catch {}
+      set({ user: null, isLoggedIn: false, needsOnboarding: false });
+      // disconnectSocket() nulls the singleton so the next login creates a
+      // fresh socket with the correct new auth token rather than reusing a
+      // stale disconnected instance.
+      try { disconnectSocket(); } catch {}
     }
   },
 
@@ -115,7 +158,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
           const me = await api.get("/auth/me");
           const user = mapProfileToArtist(me.data);
-          set({ user, isLoggedIn: true, initialized: true, loading: false });
+          set({
+            user,
+            isLoggedIn: true,
+            initialized: true,
+            loading: false,
+            needsOnboarding: evaluateOnboardingNeeded(user),
+          });
           const s = getSocket();
           if (s && t) {
             s.auth = { token: t };
@@ -123,15 +172,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
         } catch {
           setAccessToken(null);
-          set({ user: null, isLoggedIn: false, initialized: true, loading: false });
+          set({
+            user: null,
+            isLoggedIn: false,
+            initialized: true,
+            loading: false,
+            needsOnboarding: false,
+          });
         }
       } else {
-        set({ user: null, isLoggedIn: false, initialized: true });
+        set({ user: null, isLoggedIn: false, initialized: true, needsOnboarding: false });
       }
     } catch {
-      set({ user: null, isLoggedIn: false, initialized: true });
+      set({ user: null, isLoggedIn: false, initialized: true, needsOnboarding: false });
     }
   },
 
   clearError: () => set({ error: null }),
 }));
+
+export function dismissOnboarding() {
+  try {
+    localStorage.setItem(ONBOARDING_DISMISSED_KEY, "1");
+  } catch {}
+  useAuthStore.setState({ needsOnboarding: false });
+}

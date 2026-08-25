@@ -15,3 +15,7 @@ tmp/
 frontend-temp/
 *.zip
 .opencode/
+
+# build artifacts and scratch
+*.tsbuildinfo
+New folder/

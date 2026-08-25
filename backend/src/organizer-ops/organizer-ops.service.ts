@@ -6,6 +6,13 @@ import { hashToken } from '../common/helpers/crypto.helper';
 export class OrganizerOpsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // ADMIN can manage any event.
+  // All other roles (USER, ORGANIZER, MODERATOR) can only manage events they created.
+  // ORGANIZER role grants dashboard access but not cross-event management.
+  private canManageEvent(userId: string, userRole: string, eventOrganizerId: string): boolean {
+    return userRole === 'ADMIN' || eventOrganizerId === userId;
+  }
+
   async getDashboard(userId: string) {
     const now = new Date();
 
@@ -26,6 +33,9 @@ export class OrganizerOpsService {
     const totalRsvps = activeCyphers.reduce((s, c) => s + c._count.rsvps, 0) + activeSessions.reduce((s, c) => s + c._count.rsvps, 0);
     const totalCheckIns = activeCyphers.reduce((s, c) => s + c._count.checkIns, 0);
 
+    const organizerSummary = await this.prisma.organizerSummary.findUnique({ where: { userId } });
+    const totalHighlights = organizerSummary?.totalHighlights ?? 0;
+
     const recentCypherEvents = await this.prisma.auditLog.findMany({
       where: { userId, targetType: 'CYPHER', createdAt: { gte: new Date(now.getTime() - 86400000) } },
       orderBy: { createdAt: 'desc' },
@@ -37,7 +47,7 @@ export class OrganizerOpsService {
         { label: 'Pulling up', value: String(totalRsvps), helper: 'RSVPs for your events' },
         { label: 'Checked in', value: String(totalCheckIns), helper: 'Optional scans saved' },
         { label: 'Active events', value: String(activeCyphers.length + activeSessions.length), helper: 'Cyphers & sessions' },
-        { label: 'Highlights', value: '0', helper: 'Chosen to survive' },
+        { label: 'Highlights', value: String(totalHighlights), helper: 'Chosen to survive' },
       ],
       activeCyphers: activeCyphers.map((c) => ({
         id: c.id,
@@ -62,7 +72,7 @@ export class OrganizerOpsService {
     };
   }
 
-  async getCypherSummary(cypherId: string, userId: string) {
+  async getCypherSummary(cypherId: string, userId: string, userRole: string) {
     const cypher = await this.prisma.cypher.findUnique({
       where: { id: cypherId },
       include: {
@@ -74,7 +84,9 @@ export class OrganizerOpsService {
       },
     });
     if (!cypher || cypher.deletedAt) throw new NotFoundException('Cypher not found');
-    if (cypher.organizerId !== userId) throw new ForbiddenException('Only organizer can view summary');
+    if (!this.canManageEvent(userId, userRole, cypher.organizerId)) {
+      throw new ForbiddenException('Only the event host or an admin can view this summary');
+    }
 
     const safetyNotes = await this.prisma.safetyNote.findMany({
       where: { targetType: 'CYPHER', targetId: cypherId },
@@ -120,14 +132,18 @@ export class OrganizerOpsService {
     };
   }
 
-  async scanCheckIn(cypherId: string, organizerId: string, qrToken: string) {
+  async scanCheckIn(cypherId: string, userId: string, qrToken: string, userRole: string) {
     const cypher = await this.prisma.cypher.findUnique({ where: { id: cypherId } });
     if (!cypher || cypher.deletedAt) throw new NotFoundException('Cypher not found');
-    if (cypher.organizerId !== organizerId) throw new ForbiddenException('Only organizer can scan check-ins');
+    if (!this.canManageEvent(userId, userRole, cypher.organizerId)) {
+      throw new ForbiddenException('Only the event host or an admin can scan check-ins');
+    }
+    if (cypher.state === 'ARCHIVED' || cypher.state === 'CANCELLED') {
+      throw new BadRequestException('Cypher is no longer accepting check-ins');
+    }
 
     const tokenHash = hashToken(qrToken);
 
-    // Look up the RSVP that holds this token hash
     const rsvp = await this.prisma.cypherRSVP.findFirst({
       where: { cypherId, checkInTokenHash: tokenHash },
       include: { user: { include: { profile: true } } },
@@ -139,38 +155,84 @@ export class OrganizerOpsService {
       throw new BadRequestException('QR code has expired — attendee must regenerate their token');
     }
 
-    // Return early if already checked in
-    const existing = await this.prisma.cypherCheckIn.findUnique({
-      where: { cypherId_userId: { cypherId, userId: rsvp.userId } },
-    });
-    if (existing) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.cypherCheckIn.findUnique({
+        where: { cypherId_userId: { cypherId, userId: rsvp.userId } },
+      });
+      if (existing) {
+        return {
+          checkedIn: true,
+          alreadyCheckedIn: true,
+          user: { id: rsvp.userId, name: rsvp.user.displayName, handle: rsvp.user.profile?.handle || '' },
+          checkedInAt: existing.checkedInAt,
+        };
+      }
+
+      const checkIn = await tx.cypherCheckIn.create({
+        data: { cypherId, userId: rsvp.userId, tokenHash },
+      });
+
+      await tx.cypherRSVP.update({
+        where: { id: rsvp.id },
+        data: { checkInTokenHash: null, checkInTokenExpiresAt: null },
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: rsvp.userId,
+          type: 'CHECKIN_CONFIRMED',
+          title: 'You\'re checked in',
+          body: `You pulled up to ${cypher.title}.`,
+          referenceId: cypher.id,
+        },
+      });
+
       return {
         checkedIn: true,
-        alreadyCheckedIn: true,
+        alreadyCheckedIn: false,
         user: { id: rsvp.userId, name: rsvp.user.displayName, handle: rsvp.user.profile?.handle || '' },
-        checkedInAt: existing.checkedInAt,
+        checkedInAt: checkIn.checkedInAt,
       };
-    }
-
-    const checkIn = await this.prisma.cypherCheckIn.create({
-      data: { cypherId, userId: rsvp.userId, tokenHash },
     });
-
-    return {
-      checkedIn: true,
-      alreadyCheckedIn: false,
-      user: { id: rsvp.userId, name: rsvp.user.displayName, handle: rsvp.user.profile?.handle || '' },
-      checkedInAt: checkIn.checkedInAt,
-    };
   }
 
-  async addHighlight(cypherId: string, userId: string, data: { assetId: string; title: string; caption?: string; visibility?: string }) {
+  async getCypherAssets(cypherId: string, userId: string, userRole: string) {
     const cypher = await this.prisma.cypher.findUnique({ where: { id: cypherId } });
     if (!cypher || cypher.deletedAt) throw new NotFoundException('Cypher not found');
-    if (cypher.organizerId !== userId) throw new ForbiddenException('Only organizer can add highlights');
+    if (!this.canManageEvent(userId, userRole, cypher.organizerId)) {
+      throw new ForbiddenException('Only the event host or an admin can view assets');
+    }
+
+    const assets = await this.prisma.cypherAsset.findMany({
+      where: { cypherId },
+      orderBy: { createdAt: 'desc' },
+      include: { uploader: { select: { displayName: true, profile: { select: { handle: true } } } } },
+    });
+
+    return assets.map((a) => ({
+      id: a.id,
+      fileName: a.fileName,
+      fileSize: a.fileSize,
+      mimeType: a.mimeType,
+      publicUrl: a.publicUrl,
+      isHighlight: a.isHighlight,
+      expiresAt: a.expiresAt,
+      uploaderName: a.uploader?.displayName || 'Unknown',
+      uploaderHandle: a.uploader?.profile?.handle || '',
+      createdAt: a.createdAt,
+    }));
+  }
+
+  async addHighlight(cypherId: string, userId: string, data: { assetId: string; title: string; caption?: string; visibility?: string }, userRole: string) {
+    const cypher = await this.prisma.cypher.findUnique({ where: { id: cypherId } });
+    if (!cypher || cypher.deletedAt) throw new NotFoundException('Cypher not found');
+    if (!this.canManageEvent(userId, userRole, cypher.organizerId)) {
+      throw new ForbiddenException('Only the event host or an admin can add highlights');
+    }
 
     const asset = await this.prisma.cypherAsset.findUnique({ where: { id: data.assetId } });
     if (!asset) throw new NotFoundException('Asset not found');
+    if (asset.cypherId !== cypherId) throw new ForbiddenException('Asset does not belong to this cypher');
 
     if (asset.expiresAt && asset.expiresAt < new Date()) {
       throw new BadRequestException('Asset has expired');
@@ -201,10 +263,48 @@ export class OrganizerOpsService {
     return highlight;
   }
 
-  async addSafetyNote(cypherId: string, userId: string, data: { note: string; severity?: string }) {
+  async removeHighlight(cypherId: string, userId: string, highlightId: string, userRole: string) {
     const cypher = await this.prisma.cypher.findUnique({ where: { id: cypherId } });
     if (!cypher || cypher.deletedAt) throw new NotFoundException('Cypher not found');
-    if (cypher.organizerId !== userId) throw new ForbiddenException('Only organizer can add safety notes');
+    if (!this.canManageEvent(userId, userRole, cypher.organizerId)) {
+      throw new ForbiddenException('Only the event host or an admin can curate highlights');
+    }
+
+    const highlight = await this.prisma.cypherHighlight.findUnique({
+      where: { id: highlightId },
+    });
+    if (!highlight || highlight.cypherId !== cypherId) {
+      throw new NotFoundException('Highlight not found');
+    }
+
+    const asset = await this.prisma.cypherAsset.findFirst({
+      where: { cypherId, publicUrl: highlight.mediaUrl, isHighlight: true },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.cypherHighlight.delete({ where: { id: highlightId } });
+      if (asset) {
+        await tx.cypherAsset.update({
+          where: { id: asset.id },
+          data: { isHighlight: false },
+        });
+      }
+      await tx.organizerSummary.upsert({
+        where: { userId },
+        update: { totalHighlights: { decrement: 1 } },
+        create: { userId, totalHighlights: 0 },
+      });
+    });
+
+    return { removed: true, highlightId };
+  }
+
+  async addSafetyNote(cypherId: string, userId: string, data: { note: string; severity?: string }, userRole: string) {
+    const cypher = await this.prisma.cypher.findUnique({ where: { id: cypherId } });
+    if (!cypher || cypher.deletedAt) throw new NotFoundException('Cypher not found');
+    if (!this.canManageEvent(userId, userRole, cypher.organizerId)) {
+      throw new ForbiddenException('Only the event host or an admin can add safety notes');
+    }
 
     const note = await this.prisma.safetyNote.create({
       data: { targetType: 'CYPHER', targetId: cypherId, organizerId: userId, note: data.note, severity: data.severity || 'LOW' },
@@ -214,7 +314,7 @@ export class OrganizerOpsService {
 
   // ── Community Session equivalents ──
 
-  async getSessionSummary(sessionId: string, userId: string) {
+  async getSessionSummary(sessionId: string, userId: string, userRole: string) {
     const session = await this.prisma.communitySession.findUnique({
       where: { id: sessionId },
       include: {
@@ -223,7 +323,9 @@ export class OrganizerOpsService {
       },
     });
     if (!session) throw new NotFoundException('Session not found');
-    if (session.organizerId !== userId) throw new ForbiddenException('Only organizer can view summary');
+    if (!this.canManageEvent(userId, userRole, session.organizerId)) {
+      throw new ForbiddenException('Only the session host or an admin can view this summary');
+    }
 
     const safetyNotes = await this.prisma.safetyNote.findMany({
       where: { targetType: 'SESSION', targetId: sessionId },
@@ -247,14 +349,18 @@ export class OrganizerOpsService {
     };
   }
 
-  async scanSessionCheckIn(sessionId: string, organizerId: string, qrToken: string) {
+  async scanSessionCheckIn(sessionId: string, userId: string, qrToken: string, userRole: string) {
     const session = await this.prisma.communitySession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Session not found');
-    if (session.organizerId !== organizerId) throw new ForbiddenException('Only organizer can scan check-ins');
+    if (!this.canManageEvent(userId, userRole, session.organizerId)) {
+      throw new ForbiddenException('Only the session host or an admin can scan check-ins');
+    }
+    if (session.state === 'ARCHIVED' || session.state === 'CANCELLED') {
+      throw new BadRequestException('Session is no longer accepting check-ins');
+    }
 
     const tokenHash = hashToken(qrToken);
 
-    // Look up the RSVP that holds this token hash
     const rsvp = await this.prisma.communitySessionRSVP.findFirst({
       where: { sessionId, checkInTokenHash: tokenHash },
       include: { user: { include: { profile: true } } },
@@ -266,7 +372,6 @@ export class OrganizerOpsService {
       throw new BadRequestException('QR code has expired — attendee must regenerate their token');
     }
 
-    // Return early if already checked in
     if (rsvp.checkedInAt) {
       return {
         checkedIn: true,
@@ -276,23 +381,36 @@ export class OrganizerOpsService {
       };
     }
 
-    const updated = await this.prisma.communitySessionRSVP.update({
+    const checkedInAt = new Date();
+    await this.prisma.communitySessionRSVP.update({
       where: { id: rsvp.id },
-      data: { checkedInAt: new Date() },
+      data: { checkedInAt, checkInTokenHash: null, checkInTokenExpiresAt: null },
+    });
+
+    await this.prisma.notification.create({
+      data: {
+        userId: rsvp.userId,
+        type: 'CHECKIN_CONFIRMED',
+        title: 'You\'re checked in',
+        body: `You pulled up to ${session.title}.`,
+        referenceId: session.id,
+      },
     });
 
     return {
       checkedIn: true,
       alreadyCheckedIn: false,
       user: { id: rsvp.userId, name: rsvp.user.displayName, handle: rsvp.user.profile?.handle || '' },
-      checkedInAt: updated.checkedInAt,
+      checkedInAt,
     };
   }
 
-  async addSessionSafetyNote(sessionId: string, userId: string, data: { note: string; severity?: string }) {
+  async addSessionSafetyNote(sessionId: string, userId: string, data: { note: string; severity?: string }, userRole: string) {
     const session = await this.prisma.communitySession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Session not found');
-    if (session.organizerId !== userId) throw new ForbiddenException('Only organizer can add safety notes');
+    if (!this.canManageEvent(userId, userRole, session.organizerId)) {
+      throw new ForbiddenException('Only the session host or an admin can add safety notes');
+    }
 
     const note = await this.prisma.safetyNote.create({
       data: { targetType: 'SESSION', targetId: sessionId, organizerId: userId, note: data.note, severity: data.severity || 'LOW' },

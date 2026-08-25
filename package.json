@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "docker compose -f backend/docker-compose.yml up -d && concurrently --names \"API,WEB\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix backend\" \"npm run dev --prefix cypherlink-frontend\""
+  },
+  "dependencies": {
+    "playwright": "^1.60.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

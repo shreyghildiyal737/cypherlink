@@ -1,4 +1,18 @@
-import { Artist, Clip, CommunitySession, Cypher, Project } from "../types";
+import { Artist, Clip, CommunitySession, Cypher, Project, ProjectMemberInfo } from "../types";
+
+function artistToMember(a: Artist, role = "member"): ProjectMemberInfo {
+  return {
+    id: a.id,
+    userId: a.id,
+    displayName: a.name,
+    handle: a.handle,
+    role,
+    creativeRole: null,
+    status: "ACTIVE",
+    joinedAt: new Date().toISOString(),
+    removedAt: null,
+  };
+}
 export const artists: Artist[] = [
   {
     id: "a1",
@@ -46,7 +60,7 @@ export const projects: Project[] = [
     city: "Delhi / Bangalore",
     tags: ["Neo-Soul", "Hindi-English"],
     openRoles: ["Female vocalist", "Guitarist"],
-    members: [artists[0], artists[1]],
+    members: [artistToMember(artists[0], "owner"), artistToMember(artists[1], "vocalist")],
     visibility: "open",
   },
   {
@@ -56,7 +70,7 @@ export const projects: Project[] = [
     city: "Shillong",
     tags: ["Experimental", "Indie"],
     openRoles: ["Mix engineer"],
-    members: [artists[3]],
+    members: [artistToMember(artists[3], "owner")],
     visibility: "discoverable",
   },
   {
@@ -66,7 +80,7 @@ export const projects: Project[] = [
     city: "Mumbai",
     tags: ["Drill", "Trap"],
     openRoles: [],
-    members: [artists[2], artists[0]],
+    members: [artistToMember(artists[2], "owner"), artistToMember(artists[0], "vocalist")],
     visibility: "private",
   },
 ];
@@ -81,7 +95,10 @@ export const cyphers: Cypher[] = [
     startsAt: "Tonight • 8PM",
     pullingUp: 34,
     safetyTags: ["Community moderated", "Optional check-in"],
-    highlights: ["Best freestyle", "New collab formed"],
+    highlights: [
+      { id: "h1", title: "Best freestyle" },
+      { id: "h2", title: "New collab formed" },
+    ],
   },
   {
     id: "c2",

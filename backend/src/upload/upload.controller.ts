@@ -14,6 +14,6 @@ export class UploadController {
   @ApiOperation({ summary: 'Get a presigned S3/MinIO PUT URL for direct browser upload' })
   @Throttle({ default: { ttl: 60000, limit: 30 } })
   signUpload(@Body() dto: CreateSignedUploadDto, @CurrentUser('sub') _userId: string) {
-    return this.uploadService.signUpload(dto.folder, dto.contentType, dto.fileName);
+    return this.uploadService.signUpload(dto.folder, dto.contentType, dto.fileName, dto.contentLength);
   }
 }

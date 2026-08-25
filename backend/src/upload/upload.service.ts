@@ -1,23 +1,27 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, OnModuleInit } from '@nestjs/common';
 import { S3Client, PutObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
+import { ALLOWED_MIME_TYPES } from './dto/signed-upload.dto';
 
 @Injectable()
-export class UploadService {
+export class UploadService implements OnModuleInit {
   private readonly logger = new Logger(UploadService.name);
 
-  async signUpload(
-    folder: string,
-    contentType: string,
-    fileName?: string,
-  ): Promise<{ uploadUrl: string; fileKey: string; publicUrl: string; maxSize: number }> {
+  onModuleInit() {
+    if (process.env.NODE_ENV === 'production' && !process.env.S3_PUBLIC_URL) {
+      this.logger.warn(
+        'S3_PUBLIC_URL is not set. Presigned URLs will use the path-style S3_ENDPOINT, ' +
+        'which may expose internal hostnames. Set S3_PUBLIC_URL to your CDN or public bucket URL.',
+      );
+    }
+  }
+
+  private buildClient(): { client: S3Client; bucket: string; endpoint?: string; region: string } {
     const bucket = process.env.S3_BUCKET;
     if (!bucket) throw new BadRequestException('Storage not configured (S3_BUCKET missing)');
-
     const endpoint = process.env.S3_ENDPOINT;
     const region = process.env.S3_REGION || 'us-east-1';
-
     const client = new S3Client({
       region,
       ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
@@ -26,6 +30,16 @@ export class UploadService {
         secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
       },
     });
+    return { client, bucket, endpoint, region };
+  }
+
+  async signUpload(
+    folder: string,
+    contentType: string,
+    fileName?: string,
+    contentLength?: number,
+  ): Promise<{ uploadUrl: string; fileKey: string; publicUrl: string; maxSize: number; expectedContentLength?: number }> {
+    const { client, bucket, endpoint, region } = this.buildClient();
 
     const publicBase =
       process.env.S3_PUBLIC_URL ||
@@ -35,12 +49,29 @@ export class UploadService {
 
     const ext = fileName ? fileName.split('.').pop() : this.extFromMime(contentType);
     const fileKey = `${folder}/${uuidv4()}.${ext}`;
-    const maxSize = parseInt(process.env.UPLOAD_MAX_MB || '250', 10) * 1024 * 1024;
+    const defaultMb = folder === 'avatars' ? 5 : parseInt(process.env.UPLOAD_MAX_MB || '250', 10);
+    const maxSize = defaultMb * 1024 * 1024;
 
+    // Defense-in-depth: DTO @IsIn() is the first gate; this is the second.
+    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(contentType)) {
+      throw new BadRequestException(`File type not allowed: ${contentType}`);
+    }
+
+    if (contentLength !== undefined) {
+      if (contentLength <= 0) throw new BadRequestException('contentLength must be positive');
+      if (contentLength > maxSize) {
+        throw new BadRequestException(`File too large — limit is ${Math.floor(maxSize / (1024 * 1024))}MB`);
+      }
+    }
+
+    // Binding ContentLength into the signed PUT means the client cannot upload
+    // a larger file than declared. If contentLength is omitted (legacy callers),
+    // size is only enforced at the application layer on confirm.
     const command = new PutObjectCommand({
       Bucket: bucket,
       Key: fileKey,
       ContentType: contentType,
+      ...(contentLength !== undefined ? { ContentLength: contentLength } : {}),
     });
 
     const uploadUrl = await getSignedUrl(client, command, { expiresIn: 300 });
@@ -50,30 +81,18 @@ export class UploadService {
       fileKey,
       publicUrl: `${publicBase}/${fileKey}`,
       maxSize,
+      expectedContentLength: contentLength,
     };
   }
 
   async deleteObjects(fileKeys: string[]): Promise<void> {
     if (!fileKeys.length) return;
-
-    const bucket = process.env.S3_BUCKET;
-    if (!bucket) {
+    if (!process.env.S3_BUCKET) {
       this.logger.warn('S3_BUCKET not configured — skipping storage deletion');
       return;
     }
 
-    const endpoint = process.env.S3_REGION;
-    const region = process.env.S3_REGION || 'us-east-1';
-    const s3endpoint = process.env.S3_ENDPOINT;
-
-    const client = new S3Client({
-      region,
-      ...(s3endpoint ? { endpoint: s3endpoint, forcePathStyle: true } : {}),
-      credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
-      },
-    });
+    const { client, bucket } = this.buildClient();
 
     // DeleteObjects accepts up to 1000 keys per request
     for (let i = 0; i < fileKeys.length; i += 1000) {

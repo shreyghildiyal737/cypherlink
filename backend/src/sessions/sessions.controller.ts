@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { SessionsService } from './sessions.service';
 import { CreateCommunitySessionDto } from './dto/create-session.dto';
+import { CreateLearningSessionDto } from './dto/create-learning-session.dto';
+import { ScanSessionCheckInDto } from './dto/scan-checkin.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -25,6 +27,24 @@ export class SessionsController {
     return this.sessionsService.create(dto, userId);
   }
 
+  // NOTE: Static routes must come BEFORE the parameterised /:id routes,
+  // otherwise Nest matches '/sessions/learning' against ':id' and 404s.
+
+  @Public()
+  @Get('learning')
+  @ApiOperation({ summary: 'List free learning sessions — public, no payments' })
+  @ApiQuery({ name: 'city', required: false })
+  async findLearningSessions(@Query('city') city?: string) {
+    return this.sessionsService.findLearningSessions(city);
+  }
+
+  @Post('learning')
+  @ApiOperation({ summary: 'Create a free learning session — no payments, no paid marketplace' })
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  async createLearningSession(@Body() dto: CreateLearningSessionDto, @CurrentUser('sub') userId: string) {
+    return this.sessionsService.createLearningSession(dto, userId);
+  }
+
   @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get session details' })
@@ -45,8 +65,14 @@ export class SessionsController {
   }
 
   @Post(':id/checkin-scan')
-  @ApiOperation({ summary: 'Scan check-in for session (organizer only)' })
-  async scanCheckIn(@Param('id') id: string, @Body() data: { userId: string }, @CurrentUser('sub') userId: string) {
-    return this.sessionsService.scanCheckIn(id, userId, data);
+  @ApiOperation({ summary: 'Validate attendee QR token and create check-in (event host or admin)' })
+  @Throttle({ default: { ttl: 60000, limit: 60 } })
+  async scanCheckIn(
+    @Param('id') id: string,
+    @Body() dto: ScanSessionCheckInDto,
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.sessionsService.scanCheckIn(id, userId, dto.token, userRole);
   }
 }

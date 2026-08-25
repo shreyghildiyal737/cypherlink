@@ -104,9 +104,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('live:chat_message')
   handleLiveChat(@ConnectedSocket() client: Socket, @MessageBody() data: { liveId: string; message: string }) {
     if (!client.data.userId) return { error: 'Authentication required to send messages' };
+    const text = typeof data.message === 'string' ? data.message.slice(0, 1000) : '';
+    if (!text.trim()) return { error: 'Message cannot be empty' };
     this.server.to(`live:${data.liveId}`).emit('live:chat_message', {
       userId: client.data.userId,
-      message: data.message,
+      message: text,
       timestamp: new Date().toISOString(),
     });
   }

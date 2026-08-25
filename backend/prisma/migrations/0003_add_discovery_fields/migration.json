@@ -1,0 +1,11 @@
+{
+  "version": "0.3.14-fixed",
+  "dialect": "postgresql",
+  "types": {},
+  "steps": [
+    { "tag": "AlterEnum", "description": "Add COMMUNITY_HELP to CommunitySessionType" },
+    { "tag": "AlterTable", "model": "Profile", "description": "Add discovery fields" },
+    { "tag": "AlterTable", "model": "CommunitySession", "description": "Add discovery/safety fields" },
+    { "tag": "CreateIndex", "model": "Profile", "description": "Indexes for artist discovery" }
+  ]
+}

@@ -16,10 +16,11 @@ export function useHealthWithFallback() {
   return {
     ...q,
     data: q.data || {
-      api: devHealth[0],
-      database: devHealth[1],
-      redis: devHealth[2],
-      uploads: devHealth[3],
+      api: { status: 'healthy', uptimeSeconds: 0, p95Ms: 82 },
+      database: { status: 'healthy' },
+      redis: { status: 'connected' },
+      websocket: { status: 'unknown' },
+      uploads: { status: 'unavailable', warningCount: 3 },
     },
   };
 }

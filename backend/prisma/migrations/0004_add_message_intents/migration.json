@@ -1,0 +1,8 @@
+{
+  "version": "0.3.14-fixed",
+  "dialect": "postgresql",
+  "types": {},
+  "steps": [
+    { "tag": "AlterEnum", "description": "Add BEAT_SHARE, NEED_VOCALS, LOOKING_FOR_PRODUCER to MessageIntent" }
+  ]
+}

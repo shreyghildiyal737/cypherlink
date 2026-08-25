@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Req, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Req, Res, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
@@ -54,7 +54,7 @@ export class AuthController {
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) {
-      return { accessToken: null };
+      throw new UnauthorizedException('No refresh token');
     }
     const result = await this.authService.refresh(refreshToken);
     this.setRefreshCookie(res, result.rawRefreshToken);
@@ -98,7 +98,7 @@ export class AuthController {
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/api/auth',
       maxAge: parseDuration(process.env.REFRESH_TOKEN_TTL || '30d'),
     });

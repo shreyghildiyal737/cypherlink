@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CyphersService } from './cyphers.service';
 import { CreateCypherDto } from './dto/create-cypher.dto';
 import { CreateHighlightDto } from './dto/create-highlight.dto';
+import { ScanCheckInDto } from './dto/scan-checkin.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -52,28 +53,87 @@ export class CyphersController {
     return this.cyphersService.getMyCheckInToken(id, userId);
   }
 
-  @Get(':id/checkin-token')
-  @ApiOperation({ summary: 'Get QR check-in token (organizer only)' })
-  async getCheckInToken(@Param('id') id: string, @CurrentUser('sub') userId: string) {
-    return this.cyphersService.getCheckInToken(id, userId);
-  }
-
   @Post(':id/checkin-scan')
-  @ApiOperation({ summary: 'Scan QR check-in (organizer only)' })
-  async scanCheckIn(@Param('id') id: string, @Body() data: { userId: string }, @CurrentUser('sub') userId: string) {
-    return this.cyphersService.scanCheckIn(id, userId, data);
+  @ApiOperation({ summary: 'Validate attendee QR token and create check-in (event host or admin)' })
+  @Throttle({ default: { ttl: 60000, limit: 60 } })
+  async scanCheckIn(
+    @Param('id') id: string,
+    @Body() dto: ScanCheckInDto,
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.cyphersService.scanCheckIn(id, userId, dto.token, userRole);
   }
 
   @Post(':id/highlights')
-  @ApiOperation({ summary: 'Add highlight to cypher (organizer only)' })
+  @ApiOperation({ summary: 'Add highlight to cypher (event host or admin)' })
   @Throttle({ default: { ttl: 60000, limit: 10 } })
-  async addHighlight(@Param('id') id: string, @Body() dto: CreateHighlightDto, @CurrentUser('sub') userId: string) {
-    return this.cyphersService.addHighlight(id, dto, userId);
+  async addHighlight(
+    @Param('id') id: string,
+    @Body() dto: CreateHighlightDto,
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.cyphersService.addHighlight(id, dto, userId, userRole);
   }
 
   @Get(':id/summary')
-  @ApiOperation({ summary: 'Get cypher summary (organizer only)' })
-  async getSummary(@Param('id') id: string, @CurrentUser('sub') userId: string) {
-    return this.cyphersService.getSummary(id, userId);
+  @ApiOperation({ summary: 'Get cypher summary (event host or admin)' })
+  async getSummary(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.cyphersService.getSummary(id, userId, userRole);
+  }
+
+  @Patch(':id/rsvp-intent')
+  @ApiOperation({ summary: 'Set your participation intent note (must have RSVPed)' })
+  async setRsvpIntent(
+    @Param('id') id: string,
+    @Body() dto: { intentNote?: string; aliasName?: string },
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.cyphersService.setRsvpIntent(id, userId, dto.intentNote ?? '', dto.aliasName);
+  }
+
+  @Public()
+  @Get(':id/participants')
+  @ApiOperation({ summary: 'Get checked-in participants (anonymized for public, full for organizer)' })
+  async getParticipants(
+    @Param('id') id: string,
+    @CurrentUser('sub') requesterId?: string,
+    @CurrentUser('role') userRole?: string,
+  ) {
+    return this.cyphersService.getParticipants(id, requesterId ?? '', userRole ?? 'USER');
+  }
+
+  @Public()
+  @Get(':id/continuation')
+  @ApiOperation({ summary: 'Get afterglow continuation data: born projects, intents, clips' })
+  async getContinuation(@Param('id') id: string) {
+    return this.cyphersService.getContinuation(id);
+  }
+
+  @Post(':id/create-project')
+  @ApiOperation({ summary: 'Create a project from this cypher (must have RSVPed)' })
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  async createProjectFromCypher(
+    @Param('id') id: string,
+    @Body() dto: { title: string; description?: string; openRoles?: string[]; tags?: string[] },
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.cyphersService.createProjectFromCypher(id, dto, userId);
+  }
+
+  @Delete(':id/attendees/:userId')
+  @ApiOperation({ summary: 'Remove attendee from check-in record (organizer/admin only)' })
+  async removeAttendee(
+    @Param('id') id: string,
+    @Param('userId') attendeeUserId: string,
+    @CurrentUser('sub') organizerId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.cyphersService.removeAttendee(id, attendeeUserId, organizerId, userRole);
   }
 }

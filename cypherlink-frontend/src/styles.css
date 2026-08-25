@@ -1,2 +1,275 @@
-@tailwind base;@tailwind components;@tailwind utilities;
-:root{color-scheme:dark;background:#111315}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-width:320px;background:radial-gradient(circle at top left,rgba(139,92,246,.14),transparent 35%),radial-gradient(circle at bottom right,rgba(251,146,60,.11),transparent 32%),#111315;color:#f8fafc;font-family:Inter,ui-sans-serif,system-ui}body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");z-index:0}#root{position:relative;z-index:1}.glass{background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(18px)}.leaflet-container{background:#111315}.leaflet-tile{filter:grayscale(1) invert(.92) brightness(.45) contrast(1.1)}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Variables ───────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+
+  --bg:           #0e0e10;
+  --surface-1:    #1c1b1d;
+  --surface-2:    #201f22;
+  --surface-3:    #2a2a2c;
+  --border:       rgba(255, 255, 255, 0.05);
+  --border-hover: rgba(210, 187, 255, 0.18);
+  --accent:       #7c3aed;
+  --accent-glow:  rgba(124, 58, 237, 0.25);
+  --accent-muted: rgba(124, 58, 237, 0.12);
+  --live:         #c4c1fb;
+  --live-glow:    rgba(196, 193, 251, 0.26);
+  --warm:         #d2bbff;
+  --text:         #e5e1e4;
+  --text-2:       rgba(204, 195, 216, 0.80);
+  --text-3:       rgba(204, 195, 216, 0.45);
+  --gold:         #ffb3b0;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background-color: #080810;
+  color: #e5e1e4;
+  font-family: 'Inter', ui-sans-serif, system-ui;
+  overscroll-behavior-y: contain;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: rgba(124, 58, 237, 0.04);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Film grain overlay ──────────────────────────────────────────────────── */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  z-index: 9999;
+}
+
+/* ─── Glass panel ─────────────────────────────────────────────────────────── */
+.glass-panel {
+  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(124,58,237,0.025) 100%);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 1px 0 0 rgba(255, 255, 255, 0.03),
+    0 8px 40px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.glass-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.035) 0%, rgba(109,40,217,0.02) 100%);
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 4px 24px rgba(0, 0, 0, 0.6),
+    0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Keep legacy .glass for backward compat */
+.glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(124, 58, 237, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), 0 12px 40px -10px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* ─── Liquid hover radial spotlight ──────────────────────────────────────── */
+.liquid-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--x, 50%) var(--y, 50%),
+    rgba(124, 58, 237, 0.15) 0%,
+    transparent 55%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.liquid-hover:hover::after {
+  opacity: 1;
+}
+
+/* ─── Tube glow sweep ────────────────────────────────────────────────────── */
+.tube-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.tube-glow::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(210, 187, 255, 0.18), transparent);
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+
+.tube-glow:hover::after {
+  left: 100%;
+  transition: left 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* ─── Liquid card ─────────────────────────────────────────────────────────── */
+.liquid-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 0.3s ease;
+}
+
+.liquid-card:active {
+  transform: scale(0.97);
+}
+
+/* ─── Liquid button ───────────────────────────────────────────────────────── */
+.btn-liquid {
+  background: linear-gradient(135deg, #7c3aed 0%, #d2bbff 100%);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease;
+}
+
+.btn-liquid:hover {
+  box-shadow: 0 0 28px rgba(124, 58, 237, 0.45);
+}
+
+.btn-liquid:active {
+  transform: scale(0.95);
+}
+
+/* ─── Ghost input ─────────────────────────────────────────────────────────── */
+.input-ghost {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #4a4455;
+  color: #e5e1e4;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input-ghost:focus {
+  border-bottom: 2px solid #7c3aed;
+  box-shadow: 0 1px 0 0 #7c3aed;
+}
+
+.input-ghost::placeholder {
+  color: rgba(204, 195, 216, 0.45);
+}
+
+
+/* ─── Unread glow ────────────────────────────────────────────────────────── */
+.unread-indicator {
+  box-shadow: 0 0 10px #7c3aed, 0 0 20px rgba(124, 58, 237, 0.5);
+}
+
+/* ─── Material Symbols setup ─────────────────────────────────────────────── */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+  font-size: 24px;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+}
+
+.icon-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ─── Map theming ────────────────────────────────────────────────────────── */
+.leaflet-container { background: #0e0e10; }
+
+.leaflet-tile {
+  filter: grayscale(1) invert(0.95) brightness(0.22) contrast(1.2) sepia(0.15) hue-rotate(230deg);
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+
+::-webkit-scrollbar-track { background: rgba(14, 14, 16, 0.4); }
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.3);
+  border-radius: 99px;
+  border: 1px solid rgba(14, 14, 16, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.55); }
+
+/* ─── Selection ──────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(124, 58, 237, 0.3);
+  color: #e5e1e4;
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+@keyframes ambientFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(15%, 10%) scale(1.1); }
+}
+
+@keyframes ambientFloatReverse {
+  0%   { transform: translate(0, 0) scale(1.05); }
+  100% { transform: translate(-10%, -15%) scale(0.9); }
+}
+
+@keyframes flowIn {
+  from { width: 0; opacity: 0; }
+  to   { width: 100%; opacity: 1; }
+}
+
+/* ─── Mobile: prevent autozoom ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  input, textarea, select { font-size: 16px; }
+}
+
+/* ─── Touch targets ──────────────────────────────────────────────────────── */
+button, a { touch-action: manipulation; }
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Transition liquid utility ──────────────────────────────────────────── */
+.transition-liquid {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.transition_liquid {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-duration: 400ms;
+}

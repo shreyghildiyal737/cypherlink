@@ -1,11 +1,22 @@
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { OpsCard } from "../../components/ops/OpsCard";
-import { OpsMetric } from "../../components/ops/OpsMetric";
 import { OpsTimeline } from "../../components/ops/OpsTimeline";
 import { useHealthWithFallback } from "../../hooks/useDeveloperHealth";
 import { useJobsWithFallback } from "../../hooks/useQueueStatus";
 import { useAuthStore } from "../../store/authStore";
+
+const STATUS_TONES: Record<string, "green" | "orange" | "muted"> = {
+  healthy: "green",
+  ok: "green",
+  degraded: "orange",
+  down: "orange",
+  unknown: "muted",
+};
+
+function statusTone(s: string): "green" | "orange" | "muted" {
+  return STATUS_TONES[s?.toLowerCase()] ?? "muted";
+}
 
 export default function DeveloperConsole() {
   const user = useAuthStore((s) => s.user);
@@ -14,7 +25,7 @@ export default function DeveloperConsole() {
 
   if (!user || user.role !== "ADMIN") {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center text-white/40">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center font-body-md text-on-surface-variant/35">
         Access denied
       </div>
     );
@@ -40,19 +51,24 @@ export default function DeveloperConsole() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-margin-mobile md:px-margin-desktop py-8 md:py-12">
       <Badge tone="green">If it cannot be monitored, it is broken</Badge>
-      <h1 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">
+      <h1 className="mt-4 font-headline-xl text-headline-xl md:text-[clamp(2.5rem,6vw,4rem)] tracking-tight text-on-surface">
         Developer console
       </h1>
-      <p className="mt-3 max-w-2xl text-white/60">
-        Simple reliability visibility for API health, sockets, queues, uploads
-        and cleanup jobs.
+      <p className="mt-3 max-w-2xl font-body-md text-on-surface-variant/50">
+        Simple reliability visibility for API health, sockets, queues, uploads and cleanup jobs.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-4">
         {healthMetrics.map((s) => (
-          <OpsMetric key={s.label} {...s} />
+          <div key={s.label} className="glass-card rounded-2xl border border-white/[0.06] p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant/40">{s.label}</p>
+              <Badge tone={statusTone(s.value)}>{s.value}</Badge>
+            </div>
+            <p className="mt-2 font-label-sm font-mono text-sm text-on-surface-variant/60">{s.helper || "—"}</p>
+          </div>
         ))}
       </div>
 
@@ -61,7 +77,7 @@ export default function DeveloperConsole() {
           {jobs.length > 0 ? (
             <OpsTimeline items={jobs} />
           ) : (
-            <p className="text-sm text-white/60">No job history available</p>
+            <p className="font-label-sm font-mono text-sm text-on-surface-variant/50">No job history available</p>
           )}
         </OpsCard>
 
@@ -76,10 +92,10 @@ export default function DeveloperConsole() {
           </OpsCard>
 
           <OpsCard title="Current risks" eyebrow="Watch">
-            <ul className="space-y-2 text-sm text-white/60">
-              <li>&bull; Upload retries above normal threshold.</li>
-              <li>&bull; Two delayed notification jobs.</li>
-              <li>&bull; No critical socket failures.</li>
+            <ul className="space-y-2 font-label-sm font-mono text-sm text-on-surface-variant/50">
+              <li>· Upload retries above normal threshold.</li>
+              <li>· Two delayed notification jobs.</li>
+              <li>· No critical socket failures.</li>
             </ul>
           </OpsCard>
         </div>
