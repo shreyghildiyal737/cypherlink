@@ -5,6 +5,7 @@ import { AdminOpsService } from './admin-ops.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../common/enums';
+import { UpdateReportDto, UpdateRequestDto, UpdateIncidentDto } from './dto/admin-ops.dto';
 
 @ApiTags('Admin Ops')
 @Controller('admin')
@@ -33,7 +34,7 @@ export class AdminOpsController {
   @Patch('reports/:id')
   @ApiOperation({ summary: 'Update report status and take action' })
   @Throttle({ default: { ttl: 60000, limit: 30 } })
-  async updateReport(@Param('id') id: string, @Body() body: { status: string; action?: string; internalNote?: string }, @CurrentUser('sub') userId: string) {
+  async updateReport(@Param('id') id: string, @Body() body: UpdateReportDto, @CurrentUser('sub') userId: string) {
     const data = await this.service.updateReport(id, userId, body);
     return { success: true, data };
   }
@@ -48,7 +49,7 @@ export class AdminOpsController {
   @Patch('verification-requests/:id')
   @ApiOperation({ summary: 'Approve/reject verification request' })
   @Throttle({ default: { ttl: 60000, limit: 20 } })
-  async updateVerificationRequest(@Param('id') id: string, @Body() body: { status: string; internalNote?: string }, @CurrentUser('sub') userId: string) {
+  async updateVerificationRequest(@Param('id') id: string, @Body() body: UpdateRequestDto, @CurrentUser('sub') userId: string) {
     const data = await this.service.updateVerificationRequest(id, userId, body);
     return { success: true, data };
   }
@@ -63,7 +64,7 @@ export class AdminOpsController {
   @Patch('organizer-requests/:id')
   @ApiOperation({ summary: 'Approve/reject organizer request' })
   @Throttle({ default: { ttl: 60000, limit: 20 } })
-  async updateOrganizerRequest(@Param('id') id: string, @Body() body: { status: string; internalNote?: string }, @CurrentUser('sub') userId: string) {
+  async updateOrganizerRequest(@Param('id') id: string, @Body() body: UpdateRequestDto, @CurrentUser('sub') userId: string) {
     const data = await this.service.updateOrganizerRequest(id, userId, body);
     return { success: true, data };
   }
@@ -94,7 +95,7 @@ export class AdminOpsController {
   @Patch('incidents/:id')
   @ApiOperation({ summary: 'Update incident status/resolution' })
   @Throttle({ default: { ttl: 60000, limit: 20 } })
-  async updateIncident(@Param('id') id: string, @Body() body: { status?: string; priority?: string; summary?: string }, @CurrentUser('sub') userId: string) {
+  async updateIncident(@Param('id') id: string, @Body() body: UpdateIncidentDto, @CurrentUser('sub') userId: string) {
     const data = await this.service.updateIncident(id, userId, body);
     return { success: true, data };
   }

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { QrService } from './qr.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { ScanProfileDto } from './dto/scan-profile.dto';
 
 @ApiTags('QR')
 @Controller('qr')
@@ -18,7 +19,7 @@ export class QrController {
   @Public()
   @Post('scan-profile')
   @ApiOperation({ summary: 'Scan a profile QR code — public, no login required' })
-  async scanProfile(@Body() data: { profileToken: string }) {
+  async scanProfile(@Body() data: ScanProfileDto) {
     return this.qrService.scanProfile(data.profileToken);
   }
 }

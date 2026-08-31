@@ -55,13 +55,19 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  // Publishing the whole API surface in production is free reconnaissance.
+  const swaggerEnabled = process.env.NODE_ENV !== 'production';
+  if (swaggerEnabled) {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
   logger.log(`CypherLink API running on http://localhost:${port}/api`);
-  logger.log(`Swagger docs at http://localhost:${port}/api/docs`);
+  if (swaggerEnabled) {
+    logger.log(`Swagger docs at http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap();

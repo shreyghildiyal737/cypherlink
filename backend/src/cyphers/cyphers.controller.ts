@@ -7,6 +7,7 @@ import { CreateHighlightDto } from './dto/create-highlight.dto';
 import { ScanCheckInDto } from './dto/scan-checkin.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { SetRsvpIntentDto, CreateProjectFromCypherDto } from './dto/rsvp-intent.dto';
 
 @ApiTags('Cyphers')
 @Controller('cyphers')
@@ -91,7 +92,7 @@ export class CyphersController {
   @ApiOperation({ summary: 'Set your participation intent note (must have RSVPed)' })
   async setRsvpIntent(
     @Param('id') id: string,
-    @Body() dto: { intentNote?: string; aliasName?: string },
+    @Body() dto: SetRsvpIntentDto,
     @CurrentUser('sub') userId: string,
   ) {
     return this.cyphersService.setRsvpIntent(id, userId, dto.intentNote ?? '', dto.aliasName);
@@ -120,7 +121,7 @@ export class CyphersController {
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   async createProjectFromCypher(
     @Param('id') id: string,
-    @Body() dto: { title: string; description?: string; openRoles?: string[]; tags?: string[] },
+    @Body() dto: CreateProjectFromCypherDto,
     @CurrentUser('sub') userId: string,
   ) {
     return this.cyphersService.createProjectFromCypher(id, dto, userId);

@@ -5,6 +5,7 @@ import { OrganizerOpsService } from './organizer-ops.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../common/enums';
+import { ScanQrDto, AddHighlightDto, AddSafetyNoteDto } from './dto/organizer-ops.dto';
 
 // Class-level @Roles is intentionally absent — the dashboard endpoint gate is
 // on the method itself. Event-specific endpoints are auth-only; ownership is
@@ -41,7 +42,7 @@ export class OrganizerOpsController {
   @Throttle({ default: { ttl: 60000, limit: 30 } })
   async scanCheckIn(
     @Param('id') id: string,
-    @Body() body: { qrToken: string },
+    @Body() body: ScanQrDto,
     @CurrentUser('sub') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
@@ -65,7 +66,7 @@ export class OrganizerOpsController {
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   async addHighlight(
     @Param('id') id: string,
-    @Body() body: { assetId: string; title: string; caption?: string; visibility?: string },
+    @Body() body: AddHighlightDto,
     @CurrentUser('sub') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
@@ -91,7 +92,7 @@ export class OrganizerOpsController {
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   async addSafetyNote(
     @Param('id') id: string,
-    @Body() body: { note: string; severity?: string },
+    @Body() body: AddSafetyNoteDto,
     @CurrentUser('sub') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
@@ -115,7 +116,7 @@ export class OrganizerOpsController {
   @Throttle({ default: { ttl: 60000, limit: 30 } })
   async scanSessionCheckIn(
     @Param('id') id: string,
-    @Body() body: { qrToken: string },
+    @Body() body: ScanQrDto,
     @CurrentUser('sub') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
@@ -128,7 +129,7 @@ export class OrganizerOpsController {
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   async addSessionSafetyNote(
     @Param('id') id: string,
-    @Body() body: { note: string; severity?: string },
+    @Body() body: AddSafetyNoteDto,
     @CurrentUser('sub') userId: string,
     @CurrentUser('role') userRole: string,
   ) {

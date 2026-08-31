@@ -1,9 +1,9 @@
 import { Controller, Post, Delete, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { ReportTargetType, ReportReason } from '@prisma/client';
 import { SafetyService } from './safety.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CreateReportDto } from './dto/create-report.dto';
 
 @ApiTags('Safety')
 @Controller()
@@ -14,7 +14,7 @@ export class SafetyController {
   @ApiOperation({ summary: 'Report a user, project, or content' })
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   async createReport(
-    @Body() data: { targetType: ReportTargetType; targetId: string; reason: ReportReason; description?: string },
+    @Body() data: CreateReportDto,
     @CurrentUser('sub') userId: string,
   ) {
     return this.safetyService.createReport(data, userId);

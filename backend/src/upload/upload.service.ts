@@ -22,13 +22,21 @@ export class UploadService implements OnModuleInit {
     if (!bucket) throw new BadRequestException('Storage not configured (S3_BUCKET missing)');
     const endpoint = process.env.S3_ENDPOINT;
     const region = process.env.S3_REGION || 'us-east-1';
+
+    // Falling back to '' built a client that fails on every call with an opaque
+    // SDK error. Say which variable is missing instead.
+    const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+    if (!accessKeyId || !secretAccessKey) {
+      throw new BadRequestException(
+        'Storage not configured (S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY missing)',
+      );
+    }
+
     const client = new S3Client({
       region,
       ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
-      credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
-      },
+      credentials: { accessKeyId, secretAccessKey },
     });
     return { client, bucket, endpoint, region };
   }
@@ -36,7 +44,9 @@ export class UploadService implements OnModuleInit {
   async signUpload(
     folder: string,
     contentType: string,
-    fileName?: string,
+    // Accepted so existing clients keep validating under forbidNonWhitelisted,
+    // but deliberately not used - see the fileKey comment below.
+    _fileName?: string,
     contentLength?: number,
   ): Promise<{ uploadUrl: string; fileKey: string; publicUrl: string; maxSize: number; expectedContentLength?: number }> {
     const { client, bucket, endpoint, region } = this.buildClient();
@@ -47,15 +57,22 @@ export class UploadService implements OnModuleInit {
         ? `${endpoint}/${bucket}`
         : `https://${bucket}.s3.${region}.amazonaws.com`);
 
-    const ext = fileName ? fileName.split('.').pop() : this.extFromMime(contentType);
-    const fileKey = `${folder}/${uuidv4()}.${ext}`;
-    const defaultMb = folder === 'avatars' ? 5 : parseInt(process.env.UPLOAD_MAX_MB || '250', 10);
-    const maxSize = defaultMb * 1024 * 1024;
-
     // Defense-in-depth: DTO @IsIn() is the first gate; this is the second.
+    // Runs before the key is built so the extension can be derived from a
+    // type we have already accepted.
     if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(contentType)) {
       throw new BadRequestException(`File type not allowed: ${contentType}`);
     }
+
+    // The extension comes from the validated content type, never from the
+    // caller's fileName. Trusting fileName let an allowed type (image/jpeg) be
+    // stored under an arbitrary extension - ".html" against a bucket that
+    // serves by extension is stored XSS - and a name whose last dot is followed
+    // by a slash put caller-controlled path segments into the key.
+    const ext = this.extFromMime(contentType);
+    const fileKey = `${folder}/${uuidv4()}.${ext}`;
+    const defaultMb = folder === 'avatars' ? 5 : parseInt(process.env.UPLOAD_MAX_MB || '250', 10);
+    const maxSize = defaultMb * 1024 * 1024;
 
     if (contentLength !== undefined) {
       if (contentLength <= 0) throw new BadRequestException('contentLength must be positive');

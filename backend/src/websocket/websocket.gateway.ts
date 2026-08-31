@@ -9,7 +9,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
-import { Logger, UnauthorizedException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { PrismaService } from '../common/prisma/prisma.service';
 
 @WebSocketGateway({
   cors: {
@@ -25,7 +26,43 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(WsGateway.name);
   private userSockets = new Map<string, Set<string>>();
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  // Joining a room means receiving everything broadcast to it, so each join is
+  // checked against the same membership the HTTP layer enforces. Being logged
+  // in is not enough on its own - project rooms carry private messages and file
+  // events, and the ids are guessable.
+  private async canJoinProject(projectId: string, userId: string): Promise<boolean> {
+    const [owned, membership] = await Promise.all([
+      this.prisma.project.findFirst({
+        where: { id: projectId, ownerId: userId, deletedAt: null },
+        select: { id: true },
+      }),
+      this.prisma.projectMember.findFirst({
+        where: { projectId, userId, status: 'ACTIVE', removedAt: null },
+        select: { id: true },
+      }),
+    ]);
+    return Boolean(owned || membership);
+  }
+
+  // Organiser, RSVP or check-in. Both cypher types (OPEN and VENUE) are
+  // discoverable, so this is not about secrecy - it keeps the realtime channel
+  // to people actually attending rather than anyone holding an id.
+  private async canJoinCypher(cypherId: string, userId: string): Promise<boolean> {
+    const [organised, rsvp, checkIn] = await Promise.all([
+      this.prisma.cypher.findFirst({
+        where: { id: cypherId, organizerId: userId, deletedAt: null },
+        select: { id: true },
+      }),
+      this.prisma.cypherRSVP.findFirst({ where: { cypherId, userId }, select: { id: true } }),
+      this.prisma.cypherCheckIn.findFirst({ where: { cypherId, userId }, select: { id: true } }),
+    ]);
+    return Boolean(organised || rsvp || checkIn);
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -66,24 +103,37 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join:project')
-  handleJoinProject(@ConnectedSocket() client: Socket, @MessageBody() data: { projectId: string }) {
-    if (!client.data.userId) return { error: 'Authentication required to join project rooms' };
+  async handleJoinProject(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { projectId: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return { error: 'Authentication required to join project rooms' };
+    if (typeof data?.projectId !== 'string' || !data.projectId) {
+      return { error: 'projectId is required' };
+    }
+    if (!(await this.canJoinProject(data.projectId, userId))) {
+      return { error: 'Not a member of this project' };
+    }
     client.join(`project:${data.projectId}`);
     return { event: 'joined', room: `project:${data.projectId}` };
   }
 
   @SubscribeMessage('join:cypher')
-  handleJoinCypher(@ConnectedSocket() client: Socket, @MessageBody() data: { cypherId: string }) {
-    if (!client.data.userId) return { error: 'Authentication required to join cypher rooms' };
+  async handleJoinCypher(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { cypherId: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return { error: 'Authentication required to join cypher rooms' };
+    if (typeof data?.cypherId !== 'string' || !data.cypherId) {
+      return { error: 'cypherId is required' };
+    }
+    if (!(await this.canJoinCypher(data.cypherId, userId))) {
+      return { error: 'RSVP to this cypher before joining its room' };
+    }
     client.join(`cypher:${data.cypherId}`);
     return { event: 'joined', room: `cypher:${data.cypherId}` };
-  }
-
-  @SubscribeMessage('join:live')
-  handleJoinLive(@ConnectedSocket() client: Socket, @MessageBody() data: { id: string }) {
-    if (!client.data.userId) return { error: 'Authentication required to join live rooms' };
-    client.join(`live:${data.id}`);
-    return { event: 'joined', room: `live:${data.id}` };
   }
 
   @SubscribeMessage('leave:project')
@@ -96,23 +146,6 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.leave(`cypher:${data.cypherId}`);
   }
 
-  @SubscribeMessage('leave:live')
-  handleLeaveLive(@ConnectedSocket() client: Socket, @MessageBody() data: { id: string }) {
-    client.leave(`live:${data.id}`);
-  }
-
-  @SubscribeMessage('live:chat_message')
-  handleLiveChat(@ConnectedSocket() client: Socket, @MessageBody() data: { liveId: string; message: string }) {
-    if (!client.data.userId) return { error: 'Authentication required to send messages' };
-    const text = typeof data.message === 'string' ? data.message.slice(0, 1000) : '';
-    if (!text.trim()) return { error: 'Message cannot be empty' };
-    this.server.to(`live:${data.liveId}`).emit('live:chat_message', {
-      userId: client.data.userId,
-      message: text,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
   sendToUser(userId: string, event: string, data: unknown) {
     this.server.to(`user:${userId}`).emit(event, data);
   }
@@ -123,9 +156,5 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   sendToCypher(cypherId: string, event: string, data: unknown) {
     this.server.to(`cypher:${cypherId}`).emit(event, data);
-  }
-
-  sendToLive(liveId: string, event: string, data: unknown) {
-    this.server.to(`live:${liveId}`).emit(event, data);
   }
 }

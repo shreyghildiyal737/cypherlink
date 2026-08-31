@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PushService } from './push.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { SubscribePushDto, UnsubscribePushDto } from './dto/push.dto';
 
 @ApiTags('Push')
 @Controller('push')
@@ -19,7 +20,7 @@ export class PushController {
   @Post('subscribe')
   @ApiOperation({ summary: 'Save a push subscription' })
   async subscribe(
-    @Body() body: { endpoint: string; keys: { p256dh: string; auth: string } },
+    @Body() body: SubscribePushDto,
     @CurrentUser('sub') userId: string,
   ) {
     await this.pushService.saveSubscription(userId, body.endpoint, body.keys.p256dh, body.keys.auth);
@@ -29,11 +30,10 @@ export class PushController {
   @Delete('subscribe')
   @ApiOperation({ summary: 'Remove a push subscription' })
   async unsubscribe(
-    @Body() body: { endpoint: string },
+    @Body() body: UnsubscribePushDto,
     @CurrentUser('sub') userId: string,
   ) {
-    void userId;
-    await this.pushService.deleteSubscription(body.endpoint);
+    await this.pushService.deleteSubscription(body.endpoint, userId);
     return { ok: true };
   }
 }

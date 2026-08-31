@@ -14,6 +14,7 @@ import { TransitionTypeDto } from './dto/transition-type.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Throttle } from '@nestjs/throttler';
+import { SetFilledRolesDto, ConfirmFileUploadDto, OptionalNoteDto } from './dto/project-ops.dto';
 
 @ApiTags('Projects')
 @Controller('projects')
@@ -80,7 +81,7 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Update which roles are filled (owner only)' })
   async updateFilledRoles(
     @Param('id') id: string,
-    @Body() body: { filledRoles: string[] },
+    @Body() body: SetFilledRolesDto,
     @CurrentUser('sub') userId: string,
   ) {
     return this.projectsService.updateFilledRoles(id, body.filledRoles, userId);
@@ -95,7 +96,7 @@ export class ProjectsController {
 
   @Post(':id/files/confirm')
   @ApiOperation({ summary: 'Confirm file upload and save metadata' })
-  async confirmFileUpload(@Param('id') id: string, @Body() data: { fileKey: string; fileName: string; fileSize: number; mimeType: string; publicUrl?: string }, @CurrentUser('sub') userId: string) {
+  async confirmFileUpload(@Param('id') id: string, @Body() data: ConfirmFileUploadDto, @CurrentUser('sub') userId: string) {
     return this.projectsService.confirmFileUpload(id, userId, data);
   }
 
@@ -241,7 +242,7 @@ export class ProjectsController {
   async removeMember(
     @Param('id') id: string,
     @Param('targetUserId') targetUserId: string,
-    @Body() body: { note?: string },
+    @Body() body: OptionalNoteDto,
     @CurrentUser('sub') userId: string,
   ) {
     return this.projectsService.removeMember(id, targetUserId, body, userId);
