@@ -40,7 +40,7 @@ export class UsersService {
     localRemotePreference?: string;
     collaborationIntent?: string;
   }) {
-    const user = await this.findById(userId);
+    await this.findById(userId); // 404 for a missing or deleted user before any write
 
     if (data.handle) {
       const existing = await this.prisma.profile.findUnique({ where: { handle: data.handle } });

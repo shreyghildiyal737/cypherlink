@@ -32,8 +32,6 @@ export class SearchService {
 
     const shouldFetch = (t: SearchTab) => tab === 'all' || tab === t;
 
-    const textMatch = (fields: Record<string, unknown>[]): { OR: unknown[] } | undefined =>
-      q ? { OR: fields.map((f) => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, v]))) } : undefined;
 
     const [users, projects, cyphers, clips, community] = await Promise.all([
       shouldFetch('artists')
