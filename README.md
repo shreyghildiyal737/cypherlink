@@ -91,6 +91,13 @@ npm test        # backend: jest       frontend: vitest
 npm run lint
 ```
 
+`e2e.mjs` at the root runs 19 API checks and 21 browser flows (Playwright) against a running API
+on :3001 and client on :5173, with the seed data loaded: `node e2e.mjs`.
+
+Build the schema with `npm run db:migrate` (or `npx prisma migrate deploy`), never `prisma db push`:
+push changes the database without writing a migration, which is how migration 0007 came to be
+needed.
+
 ## Layout
 
 ```
