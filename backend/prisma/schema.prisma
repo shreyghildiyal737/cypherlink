@@ -185,76 +185,76 @@ enum ProjectLifecycleState {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  displayName   String
-  role          UserRole @default(USER)
-  dmPrivacy     DmPrivacy @default(EVERYONE)
-  isVerified    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  displayName  String
+  role         UserRole  @default(USER)
+  dmPrivacy    DmPrivacy @default(EVERYONE)
+  isVerified   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
-  sessions     Session[]
-  profile      Profile?
-  sentFollows  Follow[]          @relation("FollowerRelation")
-  receivedFollows Follow[]       @relation("FollowingRelation")
-  ownedProjects  Project[]
-  projectMembers ProjectMember[]
-  projectInvites ProjectInvite[]
-  projectMessages ProjectMessage[]
-  projectFilesUploaded ProjectFile[]
-  rsvps        CypherRSVP[]
-  organizedCyphers Cypher[]
-  cypherAssetsUploaded CypherAsset[]
-  organizedSessions CommunitySession[]
-  checkIns     CypherCheckIn[]
-  sessionRSVPs CommunitySessionRSVP[]
-  clips        Clip[]
-  sentRequests MessageRequest[]  @relation("SenderRelation")
-  receivedRequests MessageRequest[] @relation("ReceiverRelation")
-  conversationsAsA  Conversation[] @relation("ConversationUserA")
-  conversationsAsB  Conversation[] @relation("ConversationUserB")
-  sentMessages  Message[]
-  notifications Notification[]
-  pushSubscriptions PushSubscription[]
-  reportsMade  Report[]          @relation("ReporterRelation")
-  reportsReceived Report[]       @relation("ReportedRelation")
-  blocksGiven  Block[]          @relation("BlockerRelation")
-  blocksReceived Block[]         @relation("BlockedRelation")
-  mutedUsers   Mute[]           @relation("MuterRelation")
-  mutedBy      Mute[]           @relation("MutedRelation")
-  auditLogs    AuditLog[]
-  reputationEvents ReputationEvent[]
-  organizerSummary OrganizerSummary?
-  safetyNotes    SafetyNote[]
-  organizerRequest OrganizerRequest?
-  verificationRequest VerificationRequest?
-  reviewedOrganizerRequests OrganizerRequest[] @relation("ReviewerRelation")
-  reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewerRelation")
-  comments     Comment[]
-  roleApplicationsAsApplicant  ProjectRoleApplication[]  @relation("ApplicationApplicant")
-  roleApplicationsAsResponder  ProjectRoleApplication[]  @relation("ApplicationResponder")
-  assignedMilestones           ProjectMilestone[]        @relation("MilestoneAssignee")
-  submittedDeliverables        ProjectDeliverable[]      @relation("DeliverableSubmitter")
-  revisionRequestsMade         ProjectRevisionRequest[]  @relation("RevisionRequester")
-  collabMemoriesAsA            CollaborationMemory[]     @relation("CollabMemoryA")
-  collabMemoriesAsB            CollaborationMemory[]     @relation("CollabMemoryB")
+  sessions                     Session[]
+  profile                      Profile?
+  sentFollows                  Follow[]                 @relation("FollowerRelation")
+  receivedFollows              Follow[]                 @relation("FollowingRelation")
+  ownedProjects                Project[]
+  projectMembers               ProjectMember[]
+  projectInvites               ProjectInvite[]
+  projectMessages              ProjectMessage[]
+  projectFilesUploaded         ProjectFile[]
+  rsvps                        CypherRSVP[]
+  organizedCyphers             Cypher[]
+  cypherAssetsUploaded         CypherAsset[]
+  organizedSessions            CommunitySession[]
+  checkIns                     CypherCheckIn[]
+  sessionRSVPs                 CommunitySessionRSVP[]
+  clips                        Clip[]
+  sentRequests                 MessageRequest[]         @relation("SenderRelation")
+  receivedRequests             MessageRequest[]         @relation("ReceiverRelation")
+  conversationsAsA             Conversation[]           @relation("ConversationUserA")
+  conversationsAsB             Conversation[]           @relation("ConversationUserB")
+  sentMessages                 Message[]
+  notifications                Notification[]
+  pushSubscriptions            PushSubscription[]
+  reportsMade                  Report[]                 @relation("ReporterRelation")
+  reportsReceived              Report[]                 @relation("ReportedRelation")
+  blocksGiven                  Block[]                  @relation("BlockerRelation")
+  blocksReceived               Block[]                  @relation("BlockedRelation")
+  mutedUsers                   Mute[]                   @relation("MuterRelation")
+  mutedBy                      Mute[]                   @relation("MutedRelation")
+  auditLogs                    AuditLog[]
+  reputationEvents             ReputationEvent[]
+  organizerSummary             OrganizerSummary?
+  safetyNotes                  SafetyNote[]
+  organizerRequest             OrganizerRequest?
+  verificationRequest          VerificationRequest?
+  reviewedOrganizerRequests    OrganizerRequest[]       @relation("ReviewerRelation")
+  reviewedVerificationRequests VerificationRequest[]    @relation("VerificationReviewerRelation")
+  comments                     Comment[]
+  roleApplicationsAsApplicant  ProjectRoleApplication[] @relation("ApplicationApplicant")
+  roleApplicationsAsResponder  ProjectRoleApplication[] @relation("ApplicationResponder")
+  assignedMilestones           ProjectMilestone[]       @relation("MilestoneAssignee")
+  submittedDeliverables        ProjectDeliverable[]     @relation("DeliverableSubmitter")
+  revisionRequestsMade         ProjectRevisionRequest[] @relation("RevisionRequester")
+  collabMemoriesAsA            CollaborationMemory[]    @relation("CollabMemoryA")
+  collabMemoriesAsB            CollaborationMemory[]    @relation("CollabMemoryB")
   collectiveMemberships        CollectiveMember[]
-  foundedCollectives           Collective[]              @relation("CollectiveFounder")
+  foundedCollectives           Collective[]             @relation("CollectiveFounder")
 
   @@index([email])
 }
 
 model Session {
-  id          String   @id @default(uuid())
-  userId      String
+  id           String   @id @default(uuid())
+  userId       String
   refreshToken String
-  userAgent   String?
-  ipAddress   String?
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -263,43 +263,46 @@ model Session {
 }
 
 model Profile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  handle    String   @unique
-  bio       String?
-  city      String?
-  state     String?
-  country   String?  @default("India")
-  latitude  Float?
-  longitude Float?
-  locationVisibility LocationVisibility @default(PUBLIC_CITY_ONLY)
-  avatarUrl String?
-  coverUrl  String?
-  genres    String[]
-  socialLinks Json?
-  momentum  String?
+  id                    String                @id @default(uuid())
+  userId                String                @unique
+  handle                String                @unique
+  bio                   String?
+  city                  String?
+  state                 String?
+  country               String?               @default("India")
+  latitude              Float?
+  longitude             Float?
+  locationVisibility    LocationVisibility    @default(PUBLIC_CITY_ONLY)
+  avatarUrl             String?
+  coverUrl              String?
+  genres                String[]
+  socialLinks           Json?
+  momentum              String?
   primaryRole           String?
   secondaryRoles        String[]
-  languages             String[]
-  openToCollab          Boolean              @default(false)
-  beginnerFriendly      Boolean              @default(false)
-  availabilityStatus    AvailabilityStatus   @default(OPEN)
+  languages             String[]              @default([])
+  openToCollab          Boolean               @default(false)
+  beginnerFriendly      Boolean               @default(false)
+  availabilityStatus    AvailabilityStatus    @default(OPEN)
   collaborationCapacity Int?
   lookingFor            String[]
   localRemotePreference LocalRemotePreference @default(BOTH)
   collaborationIntent   String?
-  trustSignals          String[]
-  followedScenes        String[]             @default([])
-  lastActiveAt     DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  trustSignals          String[]              @default([])
+  followedScenes        String[]              @default([])
+  lastActiveAt          DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  credits      ProjectCredit[]
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credits ProjectCredit[]
 
   @@index([handle])
   @@index([city])
   @@index([genres])
+  @@index([city, openToCollab])
+  @@index([primaryRole])
+  @@index([lastActiveAt])
 }
 
 model Follow {
@@ -315,37 +318,37 @@ model Follow {
 }
 
 model Project {
-  id          String          @id @default(uuid())
-  title       String
-  description String?
-  coverUrl    String?
-  status      ProjectStatus   @default(COOKING)
-  visibility  ProjectVisibility @default(DISCOVERABLE)
-  city             String?
-  tags             String[]
-  openRoles        String[]
-  filledRoles      String[]
-  projectType      ProjectType            @default(STRUCTURED)
-  localRemote      LocalRemotePreference  @default(BOTH)
-  roughExpectation String?
-  commitmentStyle  CommitmentStyle?
-  expiresAt        DateTime?
-  bornFromCypherId  String?
-  lifecycleState             ProjectLifecycleState @default(ACTIVE)
-  lastMeaningfulActivityAt   DateTime?
-  participantCap             Int?
-  aiDisclosureLabel          String?
-  suppressedAt               DateTime?
-  suppressReason             String?
-  ownerId           String
-  createdAt         DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  deletedAt        DateTime?
+  id                       String                @id @default(uuid())
+  title                    String
+  description              String?
+  coverUrl                 String?
+  status                   ProjectStatus         @default(COOKING)
+  visibility               ProjectVisibility     @default(DISCOVERABLE)
+  city                     String?
+  tags                     String[]
+  openRoles                String[]
+  filledRoles              String[]
+  projectType              ProjectType           @default(STRUCTURED)
+  localRemote              LocalRemotePreference @default(BOTH)
+  roughExpectation         String?
+  commitmentStyle          CommitmentStyle?
+  expiresAt                DateTime?
+  bornFromCypherId         String?
+  lifecycleState           ProjectLifecycleState @default(ACTIVE)
+  lastMeaningfulActivityAt DateTime?
+  participantCap           Int?
+  aiDisclosureLabel        String?
+  suppressedAt             DateTime?
+  suppressReason           String?
+  ownerId                  String
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  deletedAt                DateTime?
 
   typeTransitionLog Json?
   completedAt       DateTime?
 
-  owner        User                    @relation(fields: [ownerId], references: [id])
+  owner        User                     @relation(fields: [ownerId], references: [id])
   members      ProjectMember[]
   invites      ProjectInvite[]
   messages     ProjectMessage[]
@@ -414,15 +417,15 @@ model ProjectMessage {
 }
 
 model ProjectFile {
-  id          String   @id @default(uuid())
-  projectId   String
-  uploaderId  String
-  fileName    String
-  fileKey     String
-  fileSize    Int
-  mimeType    String
-  publicUrl   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  projectId  String
+  uploaderId String
+  fileName   String
+  fileKey    String
+  fileSize   Int
+  mimeType   String
+  publicUrl  String?
+  createdAt  DateTime @default(now())
 
   project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   uploader User    @relation(fields: [uploaderId], references: [id])
@@ -543,13 +546,13 @@ model Cypher {
   updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?
 
-  organizer   User             @relation(fields: [organizerId], references: [id])
-  rsvps       CypherRSVP[]
-  checkIns    CypherCheckIn[]
-  assets      CypherAsset[]
-  highlights  CypherHighlight[]
-  comments    Comment[]
-  clips       Clip[]
+  organizer  User              @relation(fields: [organizerId], references: [id])
+  rsvps      CypherRSVP[]
+  checkIns   CypherCheckIn[]
+  assets     CypherAsset[]
+  highlights CypherHighlight[]
+  comments   Comment[]
+  clips      Clip[]
 
   @@index([state])
   @@index([startsAt])
@@ -589,7 +592,7 @@ model CypherCheckIn {
 }
 
 model CypherAsset {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   cypherId    String
   uploaderId  String
   fileKey     String
@@ -597,9 +600,9 @@ model CypherAsset {
   fileSize    Int
   mimeType    String
   publicUrl   String?
-  isHighlight Boolean  @default(false)
+  isHighlight Boolean   @default(false)
   expiresAt   DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   cypher   Cypher @relation(fields: [cypherId], references: [id], onDelete: Cascade)
   uploader User   @relation(fields: [uploaderId], references: [id])
@@ -636,12 +639,12 @@ model CommunitySession {
   freeLearning        Boolean              @default(false)
   topic               String?
   level               String?
-  safetyTags          String[]
+  safetyTags          String[]             @default([])
   organizerId         String
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
-  organizer User                    @relation(fields: [organizerId], references: [id])
+  organizer User                   @relation(fields: [organizerId], references: [id])
   rsvps     CommunitySessionRSVP[]
   comments  Comment[]
   clips     Clip[]
@@ -667,25 +670,25 @@ model CommunitySessionRSVP {
 }
 
 model Clip {
-  id                  String   @id @default(uuid())
-  creatorId           String
-  projectTitle        String?
-  city                String
-  reason              String
-  caption             String?
-  mediaUrl            String?
-  likes               Int      @default(0)
-  comments            Int      @default(0)
-  cypherId            String?
-  projectId           String?
-  communitySessionId  String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  creatorId          String
+  projectTitle       String?
+  city               String
+  reason             String
+  caption            String?
+  mediaUrl           String?
+  likes              Int      @default(0)
+  comments           Int      @default(0)
+  cypherId           String?
+  projectId          String?
+  communitySessionId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  creator           User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  cypher            Cypher?           @relation(fields: [cypherId], references: [id], onDelete: SetNull)
-  project           Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  communitySession  CommunitySession? @relation(fields: [communitySessionId], references: [id], onDelete: SetNull)
+  creator          User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  cypher           Cypher?           @relation(fields: [cypherId], references: [id], onDelete: SetNull)
+  project          Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  communitySession CommunitySession? @relation(fields: [communitySessionId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([city])
@@ -704,21 +707,21 @@ model Comment {
   clipId    String?
   createdAt DateTime @default(now())
 
-  author  User             @relation(fields: [authorId], references: [id])
-  project Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  cypher  Cypher?          @relation(fields: [cypherId], references: [id], onDelete: Cascade)
+  author  User              @relation(fields: [authorId], references: [id])
+  project Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cypher  Cypher?           @relation(fields: [cypherId], references: [id], onDelete: Cascade)
   session CommunitySession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model MessageRequest {
-  id          String        @id @default(uuid())
-  senderId    String
-  receiverId  String
-  intent      MessageIntent
-  message     String
-  status      String        @default("pending")
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id         String        @id @default(uuid())
+  senderId   String
+  receiverId String
+  intent     MessageIntent
+  message    String
+  status     String        @default("pending")
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   sender   User @relation("SenderRelation", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("ReceiverRelation", fields: [receiverId], references: [id], onDelete: Cascade)
@@ -734,8 +737,8 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userA User @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB User @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  userA    User      @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB    User      @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
   messages Message[]
 
   @@unique([userAId, userBId])
@@ -770,26 +773,26 @@ model Notification {
 }
 
 model Report {
-  id           String           @id @default(uuid())
-  reporterId   String
-  reportedId   String
-  targetType   ReportTargetType
-  targetId     String
-  reason       ReportReason
-  description  String?
-  status       String           @default("open")
-  createdAt    DateTime         @default(now())
-  resolvedAt   DateTime?
+  id          String           @id @default(uuid())
+  reporterId  String
+  reportedId  String
+  targetType  ReportTargetType
+  targetId    String
+  reason      ReportReason
+  description String?
+  status      String           @default("open")
+  createdAt   DateTime         @default(now())
+  resolvedAt  DateTime?
 
   reporter User @relation("ReporterRelation", fields: [reporterId], references: [id], onDelete: Cascade)
   reported User @relation("ReportedRelation", fields: [reportedId], references: [id], onDelete: Cascade)
 }
 
 model Block {
-  id         String   @id @default(uuid())
-  blockerId  String
-  blockedId  String
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
 
   blocker User @relation("BlockerRelation", fields: [blockerId], references: [id], onDelete: Cascade)
   blocked User @relation("BlockedRelation", fields: [blockedId], references: [id], onDelete: Cascade)
@@ -798,9 +801,9 @@ model Block {
 }
 
 model Mute {
-  id       String   @id @default(uuid())
-  muterId  String
-  mutedId  String
+  id        String   @id @default(uuid())
+  muterId   String
+  mutedId   String
   createdAt DateTime @default(now())
 
   muter User @relation("MuterRelation", fields: [muterId], references: [id], onDelete: Cascade)
@@ -850,13 +853,13 @@ model OrganizerSummary {
 }
 
 model SafetyNote {
-  id         String   @id @default(uuid())
-  targetType String
-  targetId   String
+  id          String   @id @default(uuid())
+  targetType  String
+  targetId    String
   organizerId String
-  note       String
-  severity   String   @default("LOW")
-  createdAt  DateTime @default(now())
+  note        String
+  severity    String   @default("LOW")
+  createdAt   DateTime @default(now())
 
   organizer User @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
@@ -864,44 +867,44 @@ model SafetyNote {
 }
 
 model Incident {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   targetType String
   targetId   String
-  status     String   @default("OPEN")
-  priority   String   @default("MEDIUM")
+  status     String    @default("OPEN")
+  priority   String    @default("MEDIUM")
   summary    String?
   resolvedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model OrganizerRequest {
-  id            String    @id @default(uuid())
-  userId        String
-  status        String    @default("PENDING")
-  reason        String?
-  reviewedById  String?
-  reviewedAt    DateTime?
-  internalNote  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  userId       String
+  status       String    @default("PENDING")
+  reason       String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  internalNote String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviewedBy User? @relation("ReviewerRelation", fields: [reviewedById], references: [id])
 
   @@unique([userId])
 }
 
 model VerificationRequest {
-  id            String    @id @default(uuid())
-  userId        String
-  status        String    @default("PENDING")
-  reason        String?
-  reviewedById  String?
-  reviewedAt    DateTime?
-  internalNote  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  userId       String
+  status       String    @default("PENDING")
+  reason       String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  internalNote String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviewedBy User? @relation("VerificationReviewerRelation", fields: [reviewedById], references: [id])
@@ -932,19 +935,19 @@ model CollaborationMemory {
 }
 
 model Collective {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   name             String
-  handle           String?  @unique
+  handle           String?   @unique
   description      String?
   city             String?
   avatarUrl        String?
   bornFromCypherId String?
   foundedById      String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 
-  foundedBy User             @relation("CollectiveFounder", fields: [foundedById], references: [id])
+  foundedBy User               @relation("CollectiveFounder", fields: [foundedById], references: [id])
   members   CollectiveMember[]
 
   @@index([city])
