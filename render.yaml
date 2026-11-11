@@ -1,0 +1,42 @@
+# Demo backend: one free Render web service from backend/Dockerfile, against a Neon
+# Postgres. The API refuses to boot in production until every secret below is real.
+# Frontend on Vercel, root directory cypherlink-frontend/.
+services:
+  - type: web
+    name: cypherlink-backend
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/public/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Neon's postgresql:// URL as given, with ?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: COOKIE_SECRET
+        generateValue: true
+      # The Vercel URL. The refresh cookie is SameSite=None so it can cross from there to
+      # this API; Safari may still block it, in which case serve both from one domain.
+      - key: FRONTEND_URL
+        sync: false
+      # Supabase Storage (S3 API, no card): endpoint https://<ref>.supabase.co/storage/v1/s3,
+      # region = the project's region, public URL
+      # https://<ref>.supabase.co/storage/v1/object/public/<bucket>
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_PUBLIC_URL
+        sync: false
