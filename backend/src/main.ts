@@ -6,8 +6,10 @@ import compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { assertProductionEnv } from './common/helpers/production-env.helper';
 
 async function bootstrap() {
+  assertProductionEnv();
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 

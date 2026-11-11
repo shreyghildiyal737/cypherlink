@@ -8,6 +8,14 @@ import { PublicService } from './public.service';
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
 
+  // For the hosting platform's health check: proves the process is serving and says nothing else.
+  @Public()
+  @Get('health')
+  @ApiOperation({ summary: 'Liveness check for the hosting platform' })
+  getHealth() {
+    return { status: 'ok' };
+  }
+
   @Public()
   @Get('home')
   @ApiOperation({ summary: 'Get public home page data' })

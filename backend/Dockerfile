@@ -17,4 +17,5 @@ COPY --from=builder /app/package*.json ./
 RUN npx prisma generate
 USER nestjs
 EXPOSE 3001
-CMD ["node", "dist/main"]
+# Apply pending migrations before serving, so a deploy never runs new code against an old schema.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main"]
